@@ -2,17 +2,14 @@ use assets::environment::PlanetCollection;
 use bevy::{
     core_pipeline::{bloom::BloomSettings, tonemapping::Tonemapping},
     gltf::{Gltf, GltfMesh},
-    pbr::CascadeShadowConfigBuilder,
     prelude::*,
-    render::camera::ScalingMode,
-    window::PrimaryWindow,
 };
 use bevy_asset_loader::prelude::{LoadingState, LoadingStateAppExt};
 use bevy_xpbd_3d::prelude::*;
 use graphics::GraphicsPlugin;
 use input::InputPlugin;
 use noisy_bevy::NoisyShaderPlugin;
-use rand::{seq::SliceRandom, thread_rng, Rng};
+use rand::{seq::SliceRandom, thread_rng};
 use saving::SavingPlugin;
 use strum::IntoEnumIterator;
 
@@ -28,7 +25,6 @@ const WINDOW_HEIGHT: f32 = 600.0;
 
 fn main() {
     App::new()
-        // Window resource
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
@@ -75,7 +71,6 @@ fn main() {
             (
                 update_gravity,
                 // play_initial_animations,
-                update_bounds,
                 // constrain_to_bounds,
                 // update_player_animations,
             )
@@ -84,7 +79,7 @@ fn main() {
         )
         .add_plugin(NoisyShaderPlugin)
         .add_plugin(InputPlugin)
-        .add_plugin(SavingPlugin)
+        // .add_plugin(SavingPlugin)
         .add_plugin(GraphicsPlugin)
         .add_plugins(PhysicsPlugins)
         .run();
@@ -115,6 +110,7 @@ pub struct PlanetBundle {
     pub friction: Friction,
 }
 
+/// The bounds of the playable area
 #[derive(Resource, Default)]
 pub struct Bounds {
     pub min: Vec2,
@@ -224,41 +220,6 @@ fn setup_level_gen(
         Friction::new(6.0),
         Junk {},
     ));
-}
-
-fn update_bounds(
-    window: Query<&Window, With<PrimaryWindow>>,
-    camera_projection: Query<(&Transform, &Projection), With<Camera>>,
-    mut bounds: ResMut<Bounds>,
-) {
-    let (camera_transform, projection) = camera_projection.single();
-    let resolution = &window.single().resolution;
-    let camera_transform = camera_transform.translation;
-    let aspect_ratio = resolution.width() / resolution.height();
-    let (horizontal_view, vertical_view) =
-        if let Projection::Orthographic(orthographic) = projection {
-            let scale = orthographic.scale;
-            let (fixed_dim, other_dim) =
-                if let ScalingMode::FixedVertical(vertical) = orthographic.scaling_mode {
-                    ((vertical * aspect_ratio), vertical)
-                } else if let ScalingMode::FixedHorizontal(horizontal) = orthographic.scaling_mode {
-                    (horizontal, (horizontal / aspect_ratio))
-                } else {
-                    unimplemented!()
-                };
-            (fixed_dim * scale, other_dim * scale)
-        } else {
-            unimplemented!()
-        };
-
-    bounds.min = Vec2::new(
-        camera_transform.x - horizontal_view / 2.0,
-        camera_transform.y - vertical_view / 2.0,
-    );
-    bounds.max = Vec2::new(
-        camera_transform.x + horizontal_view / 2.0,
-        camera_transform.y + vertical_view / 2.0,
-    );
 }
 
 fn update_gravity(

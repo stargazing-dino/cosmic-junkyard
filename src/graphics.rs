@@ -3,18 +3,24 @@ use bevy::{
     pbr::CascadeShadowConfigBuilder,
     prelude::*,
     render::camera::ScalingMode,
+    window::PrimaryWindow,
 };
 
-use crate::{GameState, SimulationSet};
+use crate::{Bounds, GameState, SimulationSet};
 
 pub struct GraphicsPlugin;
 
 impl Plugin for GraphicsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(
-            setup_graphics
+        app.add_systems(
+            (setup_graphics,)
                 .in_set(SimulationSet::Logic)
                 .in_schedule(OnEnter(GameState::Playing)),
+        )
+        .add_systems(
+            (update_bounds,)
+                .distributive_run_if(in_state(GameState::Playing))
+                .in_set(SimulationSet::Logic),
         );
     }
 }
@@ -80,4 +86,42 @@ fn setup_graphics(mut commands: Commands) {
         },
         BloomSettings::default(),
     ));
+}
+
+/// This updates the bounds based off the camera's position and projection.
+/// If there is no camera, the bounds will be unchanged. We'd need to reconsider
+/// this in headless mode.
+fn update_bounds(
+    window: Query<&Window, With<PrimaryWindow>>,
+    camera_projection: Query<(&Transform, &Projection), With<Camera>>,
+    mut bounds: ResMut<Bounds>,
+) {
+    let (camera_transform, projection) = camera_projection.single();
+    let resolution = &window.single().resolution;
+    let camera_transform = camera_transform.translation;
+    let aspect_ratio = resolution.width() / resolution.height();
+    let (horizontal_view, vertical_view) =
+        if let Projection::Orthographic(orthographic) = projection {
+            let scale = orthographic.scale;
+            let (fixed_dim, other_dim) =
+                if let ScalingMode::FixedVertical(vertical) = orthographic.scaling_mode {
+                    ((vertical * aspect_ratio), vertical)
+                } else if let ScalingMode::FixedHorizontal(horizontal) = orthographic.scaling_mode {
+                    (horizontal, (horizontal / aspect_ratio))
+                } else {
+                    unimplemented!()
+                };
+            (fixed_dim * scale, other_dim * scale)
+        } else {
+            unimplemented!()
+        };
+
+    bounds.min = Vec2::new(
+        camera_transform.x - horizontal_view / 2.0,
+        camera_transform.y - vertical_view / 2.0,
+    );
+    bounds.max = Vec2::new(
+        camera_transform.x + horizontal_view / 2.0,
+        camera_transform.y + vertical_view / 2.0,
+    );
 }
