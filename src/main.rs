@@ -49,7 +49,7 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.1)))
         .add_state::<GameState>()
         .add_loading_state(
-            LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::Playing),
+            LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::Prepare),
         )
         .add_collection_to_loading_state::<_, PlanetCollection>(GameState::AssetLoading)
         .insert_resource(AmbientLight {
@@ -64,7 +64,7 @@ fn main() {
         .add_systems(
             (setup_level_gen,)
                 .in_set(SimulationSet::Logic)
-                .in_schedule(OnEnter(GameState::Playing)),
+                .in_schedule(OnEnter(GameState::Prepare)),
         )
         .add_systems(
             (
@@ -129,7 +129,9 @@ pub struct Bounds {
     pub max: Vec2,
 }
 
-// System sets can be used to group systems and configured to control relative ordering
+// System sets can be used to group systems and configured to
+// control relative ordering. For example, we always want our input
+// to occur before our movement logic so we're consistent.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SimulationSet {
     Input,
@@ -140,7 +142,15 @@ pub enum SimulationSet {
 enum GameState {
     #[default]
     AssetLoading,
+
+    /// The player is sizing the planets, moving them around, etc.
+    Prepare,
+
+    /// The simulation (gravity and so on) is running
     Playing,
+
+    Paused,
+
     GameOver,
 }
 

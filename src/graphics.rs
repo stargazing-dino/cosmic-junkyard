@@ -15,10 +15,11 @@ impl Plugin for GraphicsPlugin {
         app.add_systems(
             (setup_graphics,)
                 .in_set(SimulationSet::Logic)
-                .in_schedule(OnEnter(GameState::Playing)),
+                .in_schedule(OnEnter(GameState::Prepare)),
         )
         .add_systems(
             (update_bounds,)
+                // TODO: Maybe this should run in both playing and prepare
                 .distributive_run_if(in_state(GameState::Playing))
                 .in_set(SimulationSet::Logic),
         );

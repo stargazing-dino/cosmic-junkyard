@@ -11,16 +11,27 @@ pub struct InputPlugin;
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(InputManagerPlugin::<PlanetAction>::default())
+            .add_plugin(InputManagerPlugin::<PlayerAction>::default())
             .add_event::<PlanetStateEvent>()
             .add_systems(
-                (set_direction,)
-                    .distributive_run_if(in_state(GameState::Playing))
+                (prepare_planets,)
+                    .distributive_run_if(in_state(GameState::Prepare))
                     .in_set(SimulationSet::Input),
             )
             .add_systems(
                 (setup_player,)
                     .in_set(SimulationSet::Logic)
-                    .in_schedule(OnEnter(GameState::Playing)),
+                    .in_schedule(OnEnter(GameState::Prepare)),
+            )
+            .add_systems(
+                (start_play,)
+                    .in_set(SimulationSet::Logic)
+                    .distributive_run_if(in_state(GameState::Prepare)),
+            )
+            .add_systems(
+                (pause_play,)
+                    .in_set(SimulationSet::Logic)
+                    .distributive_run_if(in_state(GameState::Playing)),
             );
     }
 }
@@ -28,8 +39,12 @@ impl Plugin for InputPlugin {
 fn setup_player(mut commands: Commands) {
     commands.spawn((PlayerBundle {
         player: Player::default(),
-        input_manager: InputManagerBundle {
-            input_map: PlayerBundle::default_input_map(),
+        planet_action_manager: InputManagerBundle {
+            input_map: PlanetAction::default_input_map(),
+            ..default()
+        },
+        player_action_manager: InputManagerBundle {
+            input_map: PlayerAction::default_input_map(),
             ..default()
         },
     },));
@@ -46,16 +61,26 @@ pub struct PlanetStateEvent {
     pub emitter: Entity,
 }
 
+pub enum PlayerNumber {
+    One,
+    Two,
+}
+
 // TODO: Use relations 🌈 or maybe generics for target
 // I think having cursor related stuff in the player might be good?
 #[derive(Component)]
 pub struct Player {
-    target: Option<Entity>,
+    pub player_number: PlayerNumber,
+
+    pub target: Option<Entity>,
 }
 
 impl Default for Player {
     fn default() -> Self {
-        Self { target: None }
+        Self {
+            target: None,
+            player_number: PlayerNumber::One,
+        }
     }
 }
 
@@ -63,16 +88,22 @@ impl Default for Player {
 pub struct PlayerBundle {
     pub player: Player,
 
-    // This bundle must be added to your player entity
-    // (or whatever else you wish to control)
     #[bundle]
-    pub input_manager: InputManagerBundle<PlanetAction>,
+    pub planet_action_manager: InputManagerBundle<PlanetAction>,
+
+    #[bundle]
+    pub player_action_manager: InputManagerBundle<PlayerAction>,
 }
 
-impl PlayerBundle {
-    pub fn default_input_map() -> InputMap<PlanetAction> {
-        // This allows us to replace `ArpgAction::Up` with `Up`,
-        // significantly reducing boilerplate
+#[derive(Actionlike, PartialEq, Clone, Copy, Debug)]
+pub enum PlanetAction {
+    Size(f32),
+
+    Move(Direction),
+}
+
+impl PlanetAction {
+    pub fn default_input_map() -> InputMap<Self> {
         use PlanetAction::*;
         let mut input_map = InputMap::default();
 
@@ -94,13 +125,47 @@ impl PlayerBundle {
 }
 
 #[derive(Actionlike, PartialEq, Clone, Copy, Debug)]
-pub enum PlanetAction {
-    Size(f32),
+pub enum PlayerAction {
+    Pause,
 
-    Move(Direction),
+    Continue,
 }
 
-fn set_direction(
+impl PlayerAction {
+    pub fn default_input_map() -> InputMap<Self> {
+        use PlayerAction::*;
+        let mut input_map = InputMap::default();
+
+        input_map.insert(KeyCode::Space, Continue);
+        // input_map.insert(KeyCode::Space, Pause);
+
+        input_map
+    }
+}
+
+fn start_play(
+    mut query: Query<(&ActionState<PlayerAction>, &Player)>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    for (action_state, _player) in query.iter_mut() {
+        if action_state.pressed(PlayerAction::Continue) {
+            next_state.0 = Some(GameState::Playing);
+        }
+    }
+}
+
+fn pause_play(
+    mut query: Query<(&ActionState<PlayerAction>, &Player)>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    for (action_state, _player) in query.iter_mut() {
+        if action_state.pressed(PlayerAction::Pause) {
+            next_state.0 = Some(GameState::Paused);
+        }
+    }
+}
+
+fn prepare_planets(
     mut query: Query<(Entity, &ActionState<PlanetAction>, &Player)>,
     mut planet_state_events: EventWriter<PlanetStateEvent>,
     mut planets: Query<&mut Planet>,

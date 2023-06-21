@@ -16,8 +16,8 @@ impl Plugin for SavingPlugin {
             .register_type::<Mass>()
             .register_type::<Position>()
             .register_type::<RigidBody>()
-            .add_system(
-                save_scene_system.in_schedule(OnEnter(GameState::Playing)), // .run_if(input_toggle_active(false, KeyCode::Escape)),
+            .add_systems(
+                (save_scene_system,).in_schedule(OnEnter(GameState::Playing)), // .run_if(input_toggle_active(false, KeyCode::Escape)),
             );
     }
 }
