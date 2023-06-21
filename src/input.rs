@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_xpbd_3d::prelude::PhysicsLoop;
 use leafwing_input_manager::orientation::Direction;
 use leafwing_input_manager::prelude::*;
 
@@ -137,7 +138,7 @@ impl PlayerAction {
         let mut input_map = InputMap::default();
 
         input_map.insert(KeyCode::Space, Continue);
-        // input_map.insert(KeyCode::Space, Pause);
+        input_map.insert(KeyCode::Space, Pause);
 
         input_map
     }
@@ -146,10 +147,12 @@ impl PlayerAction {
 fn start_play(
     mut query: Query<(&ActionState<PlayerAction>, &Player)>,
     mut next_state: ResMut<NextState<GameState>>,
+    mut physics_loop: ResMut<PhysicsLoop>,
 ) {
     for (action_state, _player) in query.iter_mut() {
-        if action_state.pressed(PlayerAction::Continue) {
+        if action_state.just_pressed(PlayerAction::Continue) {
             next_state.0 = Some(GameState::Playing);
+            physics_loop.resume();
         }
     }
 }
@@ -157,10 +160,13 @@ fn start_play(
 fn pause_play(
     mut query: Query<(&ActionState<PlayerAction>, &Player)>,
     mut next_state: ResMut<NextState<GameState>>,
+    // TODO: This ties physics to input which isn't cool
+    mut physics_loop: ResMut<PhysicsLoop>,
 ) {
     for (action_state, _player) in query.iter_mut() {
-        if action_state.pressed(PlayerAction::Pause) {
+        if action_state.just_pressed(PlayerAction::Pause) {
             next_state.0 = Some(GameState::Paused);
+            physics_loop.pause();
         }
     }
 }
