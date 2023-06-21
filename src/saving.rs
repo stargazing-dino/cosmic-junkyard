@@ -1,9 +1,6 @@
 use std::{fs::File, io::Write};
 
-use bevy::{
-    input::common_conditions::input_toggle_active, prelude::*, scene::DynamicSceneBundle,
-    tasks::IoTaskPool,
-};
+use bevy::{prelude::*, scene::DynamicSceneBundle, tasks::IoTaskPool};
 use bevy_xpbd_3d::prelude::{Friction, Mass, Position, RigidBody};
 
 use crate::{GameState, Junk, Planet};

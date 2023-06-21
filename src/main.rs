@@ -84,7 +84,7 @@ fn main() {
         )
         .add_plugin(NoisyShaderPlugin)
         .add_plugin(InputPlugin)
-        // .add_plugin(SavingPlugin)
+        .add_plugin(SavingPlugin)
         .add_plugin(GraphicsPlugin)
         .add_plugins(PhysicsPlugins)
         .run();
@@ -165,8 +165,13 @@ fn setup_level_gen(
 ) {
     let planet_types = PlanetType::iter().collect::<Vec<_>>();
     let mut rng = thread_rng();
+    let positions: [Vec2; 2] = [
+        Vec2::new(0.0, 14.0),
+        Vec2::new(0.0, -14.0),
+        // Vec2::new(-20.0, 14.0),
+    ];
 
-    for _ in 0..3 {
+    for position in positions.iter() {
         let planet_type = planet_types.choose(&mut rng).unwrap();
         let (scene, collider) = create_collider(
             *planet_type,
@@ -175,8 +180,9 @@ fn setup_level_gen(
             &gltf_meshes,
             &mut meshes,
         );
-        let x = rng.gen_range(-20..=20);
-        let y = rng.gen_range(-14..=14);
+        // let x = rng.gen_range(-20..=20);
+        // let y = rng.gen_range(-14..=14);
+        // MassPropertiesBundle
 
         commands.spawn((
             SceneBundle {
@@ -190,7 +196,7 @@ fn setup_level_gen(
                     planet_type: *planet_type,
                     gravity_strength: 9.8,
                 },
-                position: Position(Vector::new(x as f32, y as f32, 0.0)),
+                position: Position(Vector::new(position.x, position.y, 0.0)),
                 rigid_body: RigidBody::Kinematic,
                 mass: Mass(100.0),
                 friction: Friction::new(100.0).with_combine_rule(CoefficientCombine::Multiply),
@@ -212,7 +218,7 @@ fn setup_level_gen(
         },
         Collider::ball(1.0),
         RigidBody::Dynamic,
-        Position(Vector::new(0.0, 5.0, 0.0)),
+        Position(Vector::new(14.0, 0.0, 0.0)),
         ExternalForce::default(),
         Mass(1.0),
         Friction::new(6.0),
