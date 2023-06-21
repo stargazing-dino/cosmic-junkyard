@@ -163,13 +163,10 @@ fn start_play(
 fn resume_play(
     mut query: Query<(&ActionState<PlayerAction>, &Player)>,
     mut next_state: ResMut<NextState<GameState>>,
-    // TODO: This ties physics to input which isn't cool
-    mut physics_loop: ResMut<PhysicsLoop>,
 ) {
     for (action_state, _player) in query.iter_mut() {
         if action_state.just_pressed(PlayerAction::Continue) {
             next_state.0 = Some(GameState::Playing);
-            physics_loop.resume();
         }
     }
 }
@@ -177,13 +174,10 @@ fn resume_play(
 fn pause_play(
     mut query: Query<(&ActionState<PlayerAction>, &Player)>,
     mut next_state: ResMut<NextState<GameState>>,
-    // TODO: This ties physics to input which isn't cool
-    mut physics_loop: ResMut<PhysicsLoop>,
 ) {
     for (action_state, _player) in query.iter_mut() {
         if action_state.just_pressed(PlayerAction::Pause) {
             next_state.0 = Some(GameState::Paused);
-            physics_loop.pause();
         }
     }
 }

@@ -66,6 +66,8 @@ fn main() {
                 .in_set(SimulationSet::Logic)
                 .in_schedule(OnEnter(GameState::Prepare)),
         )
+        .add_systems((resume_physics,).in_schedule(OnEnter(GameState::Playing)))
+        .add_systems((pause_physics,).in_schedule(OnExit(GameState::Playing)))
         .add_systems(
             (
                 update_gravity,
@@ -152,6 +154,14 @@ enum GameState {
     Paused,
 
     GameOver,
+}
+
+fn pause_physics(mut physics_loop: ResMut<PhysicsLoop>) {
+    physics_loop.pause();
+}
+
+fn resume_physics(mut physics_loop: ResMut<PhysicsLoop>) {
+    physics_loop.resume();
 }
 
 fn create_collider(
