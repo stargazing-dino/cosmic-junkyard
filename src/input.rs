@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_xpbd_3d::prelude::PhysicsLoop;
 use leafwing_input_manager::orientation::Direction;
 use leafwing_input_manager::prelude::*;
 
