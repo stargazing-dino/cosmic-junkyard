@@ -1,5 +1,6 @@
 use assets::environment::PlanetCollection;
 use bevy::{
+    audio,
     gltf::{Gltf, GltfMesh},
     prelude::*,
 };
@@ -71,7 +72,6 @@ fn main() {
         .add_systems(
             (
                 update_gravity,
-                // play_initial_animations,
                 // constrain_to_bounds,
                 // update_player_animations,
             )
