@@ -30,6 +30,11 @@ impl Plugin for InputPlugin {
                     .distributive_run_if(in_state(GameState::Prepare)),
             )
             .add_systems(
+                (resume_play,)
+                    .in_set(SimulationSet::Logic)
+                    .distributive_run_if(in_state(GameState::Paused)),
+            )
+            .add_systems(
                 (pause_play,)
                     .in_set(SimulationSet::Logic)
                     .distributive_run_if(in_state(GameState::Playing)),
@@ -147,6 +152,18 @@ impl PlayerAction {
 fn start_play(
     mut query: Query<(&ActionState<PlayerAction>, &Player)>,
     mut next_state: ResMut<NextState<GameState>>,
+) {
+    for (action_state, _player) in query.iter_mut() {
+        if action_state.just_pressed(PlayerAction::Continue) {
+            next_state.0 = Some(GameState::Playing);
+        }
+    }
+}
+
+fn resume_play(
+    mut query: Query<(&ActionState<PlayerAction>, &Player)>,
+    mut next_state: ResMut<NextState<GameState>>,
+    // TODO: This ties physics to input which isn't cool
     mut physics_loop: ResMut<PhysicsLoop>,
 ) {
     for (action_state, _player) in query.iter_mut() {
