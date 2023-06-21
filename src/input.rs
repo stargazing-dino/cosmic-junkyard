@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use leafwing_input_manager::orientation::Direction;
 use leafwing_input_manager::prelude::*;
 
-use crate::{GameState, SimulationSet};
+use crate::{GameState, MovementState, Planet, SimulationSet};
 
 // This plugin maps inputs to an input-type agnostic action-state
 // We need to provide it with an enum which stores the possible actions a player could take
@@ -10,46 +10,52 @@ pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(InputManagerPlugin::<MovementAction>::default())
-            .add_event::<PlayerStateEvent>()
+        app.add_plugin(InputManagerPlugin::<PlanetAction>::default())
+            .add_event::<PlanetStateEvent>()
             .add_systems(
-                (set_direction, move_towards)
+                (set_direction,)
                     .distributive_run_if(in_state(GameState::Playing))
                     .in_set(SimulationSet::Input),
+            )
+            .add_systems(
+                (setup_player,)
+                    .in_set(SimulationSet::Logic)
+                    .in_schedule(OnEnter(GameState::Playing)),
             );
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct PlayerStateEvent {
-    pub state: MovementState,
-    pub entity: Entity,
+fn setup_player(mut commands: Commands) {
+    commands.spawn((PlayerBundle {
+        player: Player::default(),
+        input_manager: InputManagerBundle {
+            input_map: PlayerBundle::default_input_map(),
+            ..default()
+        },
+    },));
 }
 
+/// Listening to this event you can manage properties of the planet based
+/// off the player's inputs.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum MovementState {
-    Idle,
-    Moving { direction: Vec2 },
+pub struct PlanetStateEvent {
+    pub movement_state: MovementState,
+
+    pub size: f32,
+
+    pub emitter: Entity,
 }
 
+// TODO: Use relations 🌈 or maybe generics for target
+// I think having cursor related stuff in the player might be good?
 #[derive(Component)]
 pub struct Player {
-    speed: f32,
-    state: MovementState,
-    lerp_factor: f32,
-    acceleration: f32,
-    max_speed: f32,
+    target: Option<Entity>,
 }
 
 impl Default for Player {
     fn default() -> Self {
-        Self {
-            speed: 0.0,
-            state: MovementState::Idle,
-            lerp_factor: 0.1,
-            acceleration: 6.0,
-            max_speed: 1.6,
-        }
+        Self { target: None }
     }
 }
 
@@ -60,72 +66,65 @@ pub struct PlayerBundle {
     // This bundle must be added to your player entity
     // (or whatever else you wish to control)
     #[bundle]
-    pub input_manager: InputManagerBundle<MovementAction>,
+    pub input_manager: InputManagerBundle<PlanetAction>,
 }
 
 impl PlayerBundle {
-    pub fn default_input_map() -> InputMap<MovementAction> {
+    pub fn default_input_map() -> InputMap<PlanetAction> {
         // This allows us to replace `ArpgAction::Up` with `Up`,
         // significantly reducing boilerplate
-        use MovementAction::*;
+        use PlanetAction::*;
         let mut input_map = InputMap::default();
 
         // Movement
-        input_map.insert(KeyCode::Up, Up);
-        input_map.insert(GamepadButtonType::DPadUp, Up);
+        input_map.insert(KeyCode::Up, Move(Direction::NORTH));
+        input_map.insert(GamepadButtonType::DPadUp, Move(Direction::NORTH));
 
-        input_map.insert(KeyCode::Down, Down);
-        input_map.insert(GamepadButtonType::DPadDown, Down);
+        input_map.insert(KeyCode::Down, Move(Direction::SOUTH));
+        input_map.insert(GamepadButtonType::DPadDown, Move(Direction::SOUTH));
 
-        input_map.insert(KeyCode::Left, Left);
-        input_map.insert(GamepadButtonType::DPadLeft, Left);
+        input_map.insert(KeyCode::Left, Move(Direction::WEST));
+        input_map.insert(GamepadButtonType::DPadLeft, Move(Direction::WEST));
 
-        input_map.insert(KeyCode::Right, Right);
-        input_map.insert(GamepadButtonType::DPadRight, Right);
+        input_map.insert(KeyCode::Right, Move(Direction::EAST));
+        input_map.insert(GamepadButtonType::DPadRight, Move(Direction::EAST));
 
         input_map
     }
 }
 
-#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug)]
-pub enum MovementAction {
-    Up,
-    Down,
-    Left,
-    Right,
-}
+#[derive(Actionlike, PartialEq, Clone, Copy, Debug)]
+pub enum PlanetAction {
+    Size(f32),
 
-impl MovementAction {
-    // Lists like this can be very useful for quickly matching subsets of actions
-    const DIRECTIONS: [Self; 4] = [
-        MovementAction::Up,
-        MovementAction::Down,
-        MovementAction::Left,
-        MovementAction::Right,
-    ];
-
-    fn direction(self) -> Option<Direction> {
-        match self {
-            MovementAction::Up => Some(Direction::NORTH),
-            MovementAction::Down => Some(Direction::SOUTH),
-            MovementAction::Left => Some(Direction::WEST),
-            MovementAction::Right => Some(Direction::EAST),
-        }
-    }
+    Move(Direction),
 }
 
 fn set_direction(
-    mut query: Query<(Entity, &ActionState<MovementAction>, &mut Player)>,
-    mut player_state_events: EventWriter<PlayerStateEvent>,
+    mut query: Query<(Entity, &ActionState<PlanetAction>, &Player)>,
+    mut planet_state_events: EventWriter<PlanetStateEvent>,
+    mut planets: Query<&mut Planet>,
 ) {
-    for (entity, action_state, mut player) in query.iter_mut() {
+    for (emitter, action_state, player) in query.iter_mut() {
+        // We need a valid target (planet) in order to move it
+        let Some(target) =  player.target else {
+            continue;
+        };
+        let Ok(mut planet) = planets.get_mut(target) else {
+            continue;
+        };
+
         let mut intended_direction = Vec2::ZERO;
 
-        MovementAction::DIRECTIONS
-            .iter()
-            .filter(|input_direction| action_state.pressed(**input_direction))
-            .filter_map(|input_direction| input_direction.direction())
-            .for_each(|direction| intended_direction += Vec2::from(direction));
+        [
+            Direction::NORTH,
+            Direction::SOUTH,
+            Direction::EAST,
+            Direction::WEST,
+        ]
+        .iter()
+        .filter(|input_direction| action_state.pressed(PlanetAction::Move(**input_direction)))
+        .for_each(|direction| intended_direction += direction.unit_vector());
 
         // Normalize the vector to prevent faster diagonal movement
         if intended_direction.length() > 1.0 {
@@ -140,45 +139,20 @@ fn set_direction(
             MovementState::Idle
         };
 
-        if player.state != next_state {
-            player_state_events.send(PlayerStateEvent {
-                state: next_state,
-                entity,
+        // TODO: I'll somehow have to match off the input size. Dunno
+        // let intended_size = action_state
+        //     .get(PlanetAction::Size)
+        //     .map(|size| size * SIZE_UNIT)
+        //     .unwrap_or(planet.size);
+
+        if planet.state != next_state {
+            planet_state_events.send(PlanetStateEvent {
+                movement_state: next_state,
+                size: 0.0,
+                emitter,
             });
         }
 
-        player.state = next_state;
-    }
-}
-
-fn move_towards(mut query: Query<(&mut Transform, &mut Player)>, time: Res<Time>) {
-    let delta_seconds = time.delta_seconds();
-
-    for (mut transform, mut player) in query.iter_mut() {
-        if let MovementState::Idle = player.state {
-            player.speed = (player.speed - player.acceleration * 3.0 * delta_seconds).max(0.0);
-        } else if let MovementState::Moving { direction } = player.state {
-            player.speed =
-                (player.speed + player.acceleration * delta_seconds).min(player.max_speed);
-
-            let target_translation = transform.translation.lerp(
-                transform.translation + (direction * player.speed).extend(0.0),
-                player.lerp_factor,
-            );
-
-            transform.translation = target_translation;
-
-            // If the direction is vertical just continue
-            if (direction.x - 0.0).abs() < f32::EPSILON {
-                continue;
-            }
-
-            let target_rotation = transform.rotation.lerp(
-                Quat::from_rotation_y(direction.angle_between(-Vec2::Y)),
-                player.lerp_factor,
-            );
-
-            transform.rotation = target_rotation;
-        }
+        planet.state = next_state;
     }
 }

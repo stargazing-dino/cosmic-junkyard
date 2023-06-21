@@ -1,6 +1,5 @@
 use assets::environment::PlanetCollection;
 use bevy::{
-    core_pipeline::{bloom::BloomSettings, tonemapping::Tonemapping},
     gltf::{Gltf, GltfMesh},
     prelude::*,
 };
@@ -62,8 +61,8 @@ fn main() {
                 .chain()
                 .in_base_set(CoreSet::Update),
         )
-        .add_system(
-            setup_level_gen
+        .add_systems(
+            (setup_level_gen,)
                 .in_set(SimulationSet::Logic)
                 .in_schedule(OnEnter(GameState::Playing)),
         )
@@ -95,6 +94,18 @@ pub struct Planet {
     pub planet_type: PlanetType,
 
     pub gravity_strength: f32,
+
+    pub state: MovementState,
+}
+
+#[derive(Debug, Reflect, Default, Copy, Clone, PartialEq)]
+pub enum MovementState {
+    #[default]
+    Idle,
+
+    Moving {
+        direction: Vec2,
+    },
 }
 
 #[derive(Bundle)]
@@ -191,6 +202,7 @@ fn setup_level_gen(
                 planet: Planet {
                     planet_type: *planet_type,
                     gravity_strength: 9.8,
+                    state: MovementState::Idle,
                 },
                 position: Position(Vector::new(position.x, position.y, 0.0)),
                 rigid_body: RigidBody::Kinematic,
