@@ -2,6 +2,7 @@
 use bevy::asset::AssetServer;
 use bevy::gltf::Gltf;
 use bevy::prelude::{Handle, Resource};
+use bevy::reflect::Reflect;
 use bevy_asset_loader::prelude::*;
 use strum_macros::EnumIter;
 
@@ -273,8 +274,9 @@ impl RockType {
     }
 }
 
-#[derive(Debug, Copy, Clone, EnumIter)]
+#[derive(Debug, Default, Copy, Clone, EnumIter, Reflect)]
 pub enum PlanetType {
+    #[default]
     Planet1,
     Planet2,
     Planet3,

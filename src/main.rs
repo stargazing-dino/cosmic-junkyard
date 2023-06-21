@@ -5,16 +5,23 @@ use bevy::{
     pbr::CascadeShadowConfigBuilder,
     prelude::*,
     render::camera::ScalingMode,
+    window::PrimaryWindow,
 };
 use bevy_asset_loader::prelude::{LoadingState, LoadingStateAppExt};
-use bevy_rapier3d::prelude::*;
+use bevy_xpbd_3d::prelude::*;
+use graphics::GraphicsPlugin;
 use input::InputPlugin;
 use noisy_bevy::NoisyShaderPlugin;
+use rand::{seq::SliceRandom, thread_rng, Rng};
+use saving::SavingPlugin;
+use strum::IntoEnumIterator;
 
 use crate::assets::environment::PlanetType;
 
 mod assets;
+mod graphics;
 mod input;
+mod saving;
 
 const WINDOW_WIDTH: f32 = 800.0;
 const WINDOW_HEIGHT: f32 = 600.0;
@@ -22,23 +29,29 @@ const WINDOW_HEIGHT: f32 = 600.0;
 fn main() {
     App::new()
         // Window resource
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "Fishy".to_string(), // ToDo
-                resolution: (WINDOW_WIDTH, WINDOW_HEIGHT).into(),
-                canvas: Some("#bevy".to_owned()),
-                position: WindowPosition::At((0, 0).into()),
-                ..default()
-            }),
-            ..default()
-        }))
-        .add_plugin(NoisyShaderPlugin)
-        .add_plugin(InputPlugin)
-        .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
-        .add_plugin(RapierDebugRenderPlugin::default())
+        .add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Cosmic Junkyard".to_string(), // ToDo
+                        resolution: (WINDOW_WIDTH, WINDOW_HEIGHT).into(),
+                        canvas: Some("#bevy".to_owned()),
+                        position: WindowPosition::At((0, 0).into()),
+                        ..default()
+                    }),
+                    ..default()
+                })
+                .set(AssetPlugin {
+                    // This tells the AssetServer to watch for changes to assets.
+                    // It enables our scenes to automatically reload in game when we modify their files.
+                    watch_for_changes: true,
+                    ..default()
+                }),
+        )
+        .insert_resource(Gravity::ZERO)
+        .insert_resource(Bounds::default())
         // An outer space dark purple
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.1)))
-        // .insert_resource(Bounds::default())
         .add_state::<GameState>()
         .add_loading_state(
             LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::Playing),
@@ -53,23 +66,60 @@ fn main() {
                 .chain()
                 .in_base_set(CoreSet::Update),
         )
-        .add_systems(
-            (setup_graphics, setup_level_gen)
+        .add_system(
+            setup_level_gen
                 .in_set(SimulationSet::Logic)
                 .in_schedule(OnEnter(GameState::Playing)),
         )
         .add_systems(
             (
-                update_gravity_system,
+                update_gravity,
                 // play_initial_animations,
-                // update_bounds,
+                update_bounds,
                 // constrain_to_bounds,
                 // update_player_animations,
             )
                 .distributive_run_if(in_state(GameState::Playing))
                 .in_set(SimulationSet::Logic),
         )
+        .add_plugin(NoisyShaderPlugin)
+        .add_plugin(InputPlugin)
+        // .add_plugin(SavingPlugin)
+        .add_plugin(GraphicsPlugin)
+        .add_plugins(PhysicsPlugins)
         .run();
+}
+
+#[derive(Component, Reflect, Default, Debug)]
+#[reflect(Component)]
+pub struct Junk {}
+
+#[derive(Component, Reflect, Default, Debug, Clone)]
+#[reflect(Component)]
+pub struct Planet {
+    pub planet_type: PlanetType,
+
+    pub gravity_strength: f32,
+}
+
+#[derive(Bundle)]
+pub struct PlanetBundle {
+    pub planet: Planet,
+
+    pub position: Position,
+
+    pub rigid_body: RigidBody,
+
+    pub mass: Mass,
+
+    pub friction: Friction,
+}
+
+#[derive(Resource, Default)]
+pub struct Bounds {
+    pub min: Vec2,
+
+    pub max: Vec2,
 }
 
 // System sets can be used to group systems and configured to control relative ordering
@@ -87,88 +137,13 @@ enum GameState {
     GameOver,
 }
 
-fn setup_graphics(mut commands: Commands) {
-    // directional 'sun' light
-    commands.spawn(DirectionalLightBundle {
-        directional_light: DirectionalLight {
-            illuminance: 10000.0,
-            shadows_enabled: true,
-            ..default()
-        },
-        transform: Transform::from_xyz(0.0, 30.0, 0.01).looking_at(Vec3::ZERO, Vec3::Y),
-        // The default cascade config is designed to handle large scenes.
-        // As this example has a much smaller world, we can tighten the shadow
-        // bounds for better visual quality.
-        cascade_shadow_config: CascadeShadowConfigBuilder {
-            first_cascade_far_bound: 4.0,
-            maximum_distance: 10.0,
-            ..default()
-        }
-        .into(),
-        ..default()
-    });
-
-    commands.spawn(PointLightBundle {
-        transform: Transform::from_xyz(0.0, 30.0, -50.0).looking_at(Vec3::ZERO, Vec3::Y),
-        point_light: PointLight {
-            color: Color::hex("0a0a2c").unwrap(),
-            intensity: 100000.0,
-            shadows_enabled: true,
-            range: 100.0,
-            ..default()
-        },
-        ..default()
-    });
-
-    commands.spawn(PointLightBundle {
-        transform: Transform::from_xyz(30.0, 200.0, -20.0).looking_at(Vec3::ZERO, Vec3::Y),
-        point_light: PointLight {
-            color: Color::hex("ffddaa").unwrap(),
-            intensity: 100000.0,
-            shadows_enabled: true,
-            range: 100.0,
-            ..default()
-        },
-        ..default()
-    });
-
-    let camera_transform = Transform::from_xyz(0.0, 0.0, 30.0);
-
-    // Bevy is a right handed, Y-up system.
-    commands.spawn((
-        Camera3dBundle {
-            tonemapping: Tonemapping::TonyMcMapface,
-            projection: Projection::Orthographic(OrthographicProjection {
-                scale: 2.0,
-                scaling_mode: ScalingMode::FixedVertical(4.0),
-                ..default()
-            }),
-            transform: camera_transform,
-            ..default()
-        },
-        BloomSettings::default(),
-    ));
-}
-
-#[derive(Component, Debug)]
-pub struct Planet {
-    pub planet_type: PlanetType,
-
-    pub gravity_strength: f32,
-}
-
-fn setup_level_gen(
-    mut commands: Commands,
-    planet_collection: Res<PlanetCollection>,
-    gltf_assets: Res<Assets<Gltf>>,
-    gltf_meshes: Res<Assets<GltfMesh>>,
-    meshes: Res<Assets<Mesh>>,
-    mut rapier_config: ResMut<RapierConfiguration>,
-) {
-    // We construct our own gravity so set the global rapier one to 0.0
-    rapier_config.gravity = Vec3::ZERO;
-
-    let planet_type = PlanetType::Planet1;
+fn create_collider(
+    planet_type: PlanetType,
+    planet_collection: &Res<PlanetCollection>,
+    gltf_assets: &Res<Assets<Gltf>>,
+    gltf_meshes: &Res<Assets<GltfMesh>>,
+    meshes: &ResMut<Assets<Mesh>>,
+) -> (Handle<Scene>, Collider) {
     let gltf_handle = planet_type.model_from(&planet_collection);
     let gltf = gltf_assets.get(&gltf_handle).unwrap();
     let scene = gltf.scenes.first().unwrap().clone();
@@ -176,46 +151,139 @@ fn setup_level_gen(
     let gltf_mesh = gltf_meshes.get(&gltf_mesh_handle).unwrap();
     let mesh_handle = gltf_mesh.primitives.first().unwrap().mesh.clone();
     let mesh = meshes.get(&mesh_handle).unwrap();
-    let collider = Collider::from_bevy_mesh(mesh, &ComputedColliderShape::TriMesh).unwrap();
+
+    (scene, Collider::trimesh_from_bevy_mesh(mesh).unwrap())
+}
+
+fn setup_level_gen(
+    mut commands: Commands,
+    planet_collection: Res<PlanetCollection>,
+    gltf_assets: Res<Assets<Gltf>>,
+    gltf_meshes: Res<Assets<GltfMesh>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let planet_types = PlanetType::iter().collect::<Vec<_>>();
+    let mut rng = thread_rng();
+
+    for _ in 0..3 {
+        let planet_type = planet_types.choose(&mut rng).unwrap();
+        let (scene, collider) = create_collider(
+            *planet_type,
+            &planet_collection,
+            &gltf_assets,
+            &gltf_meshes,
+            &mut meshes,
+        );
+        let x = rng.gen_range(-20..=20);
+        let y = rng.gen_range(-14..=14);
+
+        commands.spawn((
+            SceneBundle {
+                scene,
+                transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                ..default()
+            },
+            collider,
+            PlanetBundle {
+                planet: Planet {
+                    planet_type: *planet_type,
+                    gravity_strength: 9.8,
+                },
+                position: Position(Vector::new(x as f32, y as f32, 0.0)),
+                rigid_body: RigidBody::Kinematic,
+                mass: Mass(100.0),
+                friction: Friction::new(100.0).with_combine_rule(CoefficientCombine::Multiply),
+            },
+        ));
+    }
+
+    let shape = shape::UVSphere {
+        radius: 1.0,
+        ..default()
+    };
 
     commands.spawn((
-        SceneBundle {
-            scene,
+        PbrBundle {
+            mesh: meshes.add(shape.into()),
+            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
             ..default()
         },
-        collider,
-        Planet {
-            planet_type,
-            gravity_strength: 9.8,
-        },
-        RigidBody::KinematicPositionBased,
-        AdditionalMassProperties::Mass(1000.0),
-    ));
-
-    commands.spawn((
-        TransformBundle::from_transform(Transform::from_xyz(0.0, 5.0, 0.0)),
-        Collider::from_bevy_mesh(
-            &Mesh::from(shape::Cube { size: 5.0 }),
-            &ComputedColliderShape::TriMesh,
-        )
-        .unwrap(),
+        Collider::ball(1.0),
         RigidBody::Dynamic,
+        Position(Vector::new(0.0, 5.0, 0.0)),
         ExternalForce::default(),
-        AdditionalMassProperties::Mass(10.0),
+        Mass(1.0),
+        Friction::new(6.0),
+        Junk {},
     ));
 }
 
-fn update_gravity_system(
-    planet_query: Query<(&Planet, &Transform), With<RigidBody>>,
-    mut body_query: Query<(&Transform, &mut ExternalForce), (With<RigidBody>, Without<Planet>)>,
+fn update_bounds(
+    window: Query<&Window, With<PrimaryWindow>>,
+    camera_projection: Query<(&Transform, &Projection), With<Camera>>,
+    mut bounds: ResMut<Bounds>,
 ) {
-    for (planet, planet_transform) in planet_query.iter() {
-        for (body_transform, mut external_force) in body_query.iter_mut() {
-            // TODO: get true centroid of planet and body
-            let direction_to_center = planet_transform.translation - body_transform.translation;
-            let gravity_vector = direction_to_center.normalize() * planet.gravity_strength;
-            external_force.force = gravity_vector;
+    let (camera_transform, projection) = camera_projection.single();
+    let resolution = &window.single().resolution;
+    let camera_transform = camera_transform.translation;
+    let aspect_ratio = resolution.width() / resolution.height();
+    let (horizontal_view, vertical_view) =
+        if let Projection::Orthographic(orthographic) = projection {
+            let scale = orthographic.scale;
+            let (fixed_dim, other_dim) =
+                if let ScalingMode::FixedVertical(vertical) = orthographic.scaling_mode {
+                    ((vertical * aspect_ratio), vertical)
+                } else if let ScalingMode::FixedHorizontal(horizontal) = orthographic.scaling_mode {
+                    (horizontal, (horizontal / aspect_ratio))
+                } else {
+                    unimplemented!()
+                };
+            (fixed_dim * scale, other_dim * scale)
+        } else {
+            unimplemented!()
+        };
+
+    bounds.min = Vec2::new(
+        camera_transform.x - horizontal_view / 2.0,
+        camera_transform.y - vertical_view / 2.0,
+    );
+    bounds.max = Vec2::new(
+        camera_transform.x + horizontal_view / 2.0,
+        camera_transform.y + vertical_view / 2.0,
+    );
+}
+
+fn update_gravity(
+    planet_query: Query<(&Planet, &Position, &Mass), With<RigidBody>>,
+    mut body_query: Query<
+        (&Position, &Mass, &mut ExternalForce),
+        (With<RigidBody>, Without<Planet>),
+    >,
+) {
+    for (body_position, body_mass, mut external_force) in body_query.iter_mut() {
+        // Initialize a new force vector to (0,0)
+        let mut total_force = Vec3::ZERO;
+
+        for (planet, planet_position, planet_mass) in planet_query.iter() {
+            // Compute distance between planet and body
+            let distance = planet_position.0.distance(body_position.0);
+
+            // Prevent division by very small numbers
+            let safe_distance = distance.max(0.001); // Replace 0.001 with a suitable small number
+
+            // Compute gravitational force as per Newton's law
+            let gravity_force_magnitude =
+                planet.gravity_strength * planet_mass.0 * body_mass.0 / safe_distance.powi(2);
+            let gravity_vector =
+                (planet_position.0 - body_position.0).normalize() * gravity_force_magnitude;
+
+            // Add this planet's gravitational force to the total
+            total_force += gravity_vector;
         }
+
+        // Apply the total gravitational force from all planets to the body
+        external_force.0 = total_force;
     }
 }
