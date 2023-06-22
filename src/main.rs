@@ -236,7 +236,7 @@ fn setup_level_gen(
                     gravity_strength: 9.8,
                     state: MovementState::Idle,
                 },
-                position: Position(Vector::new(position.x, position.y, 0.0)),
+                position: Position(Vec3::new(position.x, position.y, 0.0)),
                 rigid_body: RigidBody::Kinematic,
                 mass: Mass(mass as f32),
                 // mass: Mass(1.0),
@@ -258,15 +258,11 @@ fn setup_level_gen(
             ..default()
         },
         Collider::ball(1.0),
-        ColliderMassProperties {
-            // We need this non-zero density to make the mass approximately equal to
-            // whatever I set it below.
-            density: 0.0000001,
-            ..default()
-        },
+        ColliderMassProperties::ZERO,
+        Inertia(Mat3::IDENTITY),
         Mass(1.0),
         RigidBody::Dynamic,
-        Position(Vector::new(14.0, 0.0, 0.0)),
+        Position(Vec3::new(14.0, 0.0, 0.0)),
         ExternalForce::default(),
         Friction::new(6.0),
         Junk {},
