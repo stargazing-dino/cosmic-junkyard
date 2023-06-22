@@ -1,6 +1,6 @@
 use assets::environment::PlanetCollection;
 use bevy::{
-    audio,
+    audio::{self, AudioPlugin},
     gltf::{Gltf, GltfMesh},
     prelude::*,
 };
@@ -8,9 +8,11 @@ use bevy_asset_loader::prelude::{LoadingState, LoadingStateAppExt};
 use bevy_xpbd_3d::prelude::*;
 use graphics::GraphicsPlugin;
 use input::InputPlugin;
+use music::MusicPlugin;
 use noisy_bevy::NoisyShaderPlugin;
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use saving::SavingPlugin;
+use sounds::SoundsPlugin;
 use strum::IntoEnumIterator;
 
 use crate::assets::environment::PlanetType;
@@ -18,7 +20,9 @@ use crate::assets::environment::PlanetType;
 mod assets;
 mod graphics;
 mod input;
+mod music;
 mod saving;
+mod sounds;
 
 const WINDOW_WIDTH: f32 = 800.0;
 const WINDOW_HEIGHT: f32 = 600.0;
@@ -52,6 +56,7 @@ fn main() {
         .add_loading_state(
             LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::Prepare),
         )
+        // TODO: Loading these assets shold be in graphics
         .add_collection_to_loading_state::<_, PlanetCollection>(GameState::AssetLoading)
         .insert_resource(AmbientLight {
             color: Color::WHITE,
@@ -62,16 +67,13 @@ fn main() {
                 .chain()
                 .in_base_set(CoreSet::Update),
         )
-        .add_systems(
-            (setup_level_gen,)
-                .in_set(SimulationSet::Logic)
-                .in_schedule(OnEnter(GameState::Prepare)),
-        )
+        .add_systems((setup_level_gen,).in_schedule(OnEnter(GameState::Prepare)))
         .add_systems((resume_physics,).in_schedule(OnEnter(GameState::Playing)))
         .add_systems((pause_physics,).in_schedule(OnExit(GameState::Playing)))
         .add_systems(
             (
                 update_gravity,
+                check_collision,
                 // constrain_to_bounds,
                 // update_player_animations,
             )
@@ -82,13 +84,20 @@ fn main() {
         .add_plugin(InputPlugin)
         // .add_plugin(SavingPlugin)
         .add_plugin(GraphicsPlugin)
+        .add_plugin(SoundsPlugin)
+        .add_plugin(MusicPlugin)
         .add_plugins(PhysicsPlugins)
+        .add_event::<JunkCollision>()
         .run();
 }
 
 #[derive(Component, Reflect, Default, Debug)]
 #[reflect(Component)]
 pub struct Junk {}
+
+#[derive(Component, Reflect, Default, Debug)]
+#[reflect(Component)]
+pub struct Goal {}
 
 #[derive(Component, Reflect, Default, Debug, Clone)]
 #[reflect(Component)]
@@ -137,6 +146,7 @@ pub struct Bounds {
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SimulationSet {
     Input,
+
     Logic,
 }
 
@@ -294,5 +304,39 @@ fn update_gravity(
         // Apply the total gravitational force from all planets to the body
         // external_force.0 = total_force;
         external_force.0 = total_force;
+    }
+}
+
+pub struct JunkCollision {
+    pub normal: Vec3,
+
+    pub penetration: f32,
+
+    /// In global coordinates.
+    pub contact_point: Vec3,
+}
+
+fn check_collision(
+    mut collision_event_reader: EventReader<Collision>,
+    mut junk_collision_write: EventWriter<JunkCollision>,
+    planet_query: Query<Entity, With<Planet>>,
+    junk_query: Query<Entity, With<Junk>>,
+) {
+    for Collision(contact) in collision_event_reader.iter() {
+        let is_planet_entity1 = planet_query.get(contact.entity1).is_ok();
+        let is_junk_entity2 = junk_query.get(contact.entity2).is_ok();
+
+        let is_junk_entity1 = junk_query.get(contact.entity1).is_ok();
+        let is_planet_entity2 = planet_query.get(contact.entity2).is_ok();
+
+        let contact_point = (contact.point1 + contact.point2) / 2.0;
+
+        if (is_planet_entity1 && is_junk_entity2) || (is_junk_entity1 && is_planet_entity2) {
+            junk_collision_write.send(JunkCollision {
+                normal: contact.normal,
+                penetration: contact.penetration,
+                contact_point,
+            });
+        }
     }
 }
