@@ -19,3 +19,6 @@ https://bleeoop.itch.io/interface-bleeps
 
 music
 https://lowenergygirl.itch.io/space-journey
+
+space sound effects
+https://gamesupply.itch.io/200-space-sound-effects
