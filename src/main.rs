@@ -9,7 +9,7 @@ use bevy_xpbd_3d::prelude::*;
 use graphics::GraphicsPlugin;
 use input::InputPlugin;
 use noisy_bevy::NoisyShaderPlugin;
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{seq::SliceRandom, thread_rng, Rng};
 use saving::SavingPlugin;
 use strum::IntoEnumIterator;
 
@@ -209,7 +209,8 @@ fn setup_level_gen(
         );
         // let x = rng.gen_range(-20..=20);
         // let y = rng.gen_range(-14..=14);
-        // MassPropertiesBundle
+
+        let mass = rng.gen_range(10..=200);
 
         commands.spawn((
             SceneBundle {
@@ -218,6 +219,7 @@ fn setup_level_gen(
                 ..default()
             },
             collider,
+            ColliderMassProperties::ZERO,
             PlanetBundle {
                 planet: Planet {
                     planet_type: *planet_type,
@@ -226,7 +228,8 @@ fn setup_level_gen(
                 },
                 position: Position(Vector::new(position.x, position.y, 0.0)),
                 rigid_body: RigidBody::Kinematic,
-                mass: Mass(100.0),
+                mass: Mass(mass as f32),
+                // mass: Mass(1.0),
                 friction: Friction::new(100.0).with_combine_rule(CoefficientCombine::Multiply),
             },
         ));
@@ -245,10 +248,16 @@ fn setup_level_gen(
             ..default()
         },
         Collider::ball(1.0),
+        ColliderMassProperties {
+            // We need this non-zero density to make the mass approximately equal to
+            // whatever I set it below.
+            density: 0.0000001,
+            ..default()
+        },
+        Mass(1.0),
         RigidBody::Dynamic,
         Position(Vector::new(14.0, 0.0, 0.0)),
         ExternalForce::default(),
-        Mass(1.0),
         Friction::new(6.0),
         Junk {},
     ));
@@ -283,6 +292,7 @@ fn update_gravity(
         }
 
         // Apply the total gravitational force from all planets to the body
+        // external_force.0 = total_force;
         external_force.0 = total_force;
     }
 }
