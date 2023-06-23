@@ -12,14 +12,14 @@ impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(InputManagerPlugin::<PlanetAction>::default())
             .add_plugin(InputManagerPlugin::<PlayerAction>::default())
-            .add_event::<PlanetStateEvent>()
+            .add_event::<PlanetChangeEvent>()
             .add_systems(
                 (setup_player,)
                     .in_set(SimulationSet::Logic)
                     .in_schedule(OnEnter(GameState::Preparation)),
             )
             .add_systems(
-                (move_planets,)
+                (change_planets,)
                     .distributive_run_if(in_state(GameState::Preparation))
                     .in_set(SimulationSet::Input),
             )
@@ -45,6 +45,7 @@ impl Plugin for InputPlugin {
 fn setup_player(mut commands: Commands) {
     commands.spawn((PlayerBundle {
         player: Player::default(),
+        focus: Focus(None),
         planet_action_manager: InputManagerBundle {
             input_map: PlanetAction::default_input_map(),
             ..default()
@@ -59,7 +60,7 @@ fn setup_player(mut commands: Commands) {
 /// Listening to this event you can manage properties of the planet based
 /// off the player's inputs.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct PlanetStateEvent {
+pub struct PlanetChangeEvent {
     pub movement_state: MovementState,
 
     pub size: f32,
@@ -73,19 +74,18 @@ pub enum PlayerNumber {
     Two,
 }
 
-// TODO: Use relations 🌈 or maybe generics for target
+#[derive(Component)]
+pub struct Focus(Option<Entity>);
+
 // I think having cursor related stuff in the player might be good?
 #[derive(Component)]
 pub struct Player {
     pub player_number: PlayerNumber,
-
-    pub target: Option<Entity>,
 }
 
 impl Default for Player {
     fn default() -> Self {
         Self {
-            target: None,
             player_number: PlayerNumber::One,
         }
     }
@@ -94,6 +94,8 @@ impl Default for Player {
 #[derive(Bundle)]
 pub struct PlayerBundle {
     pub player: Player,
+
+    pub focus: Focus,
 
     #[bundle]
     pub planet_action_manager: InputManagerBundle<PlanetAction>,
@@ -150,6 +152,34 @@ impl PlayerAction {
     }
 }
 
+#[derive(Actionlike, PartialEq, Clone, Copy, Debug)]
+pub enum UiAction {
+    Move(Direction),
+
+    Select,
+}
+
+impl UiAction {
+    pub fn default_input_map() -> InputMap<Self> {
+        use UiAction::*;
+        let mut input_map = InputMap::default();
+
+        input_map.insert(KeyCode::Up, Move(Direction::NORTH));
+        input_map.insert(GamepadButtonType::DPadUp, Move(Direction::NORTH));
+
+        input_map.insert(KeyCode::Down, Move(Direction::SOUTH));
+        input_map.insert(GamepadButtonType::DPadDown, Move(Direction::SOUTH));
+
+        input_map.insert(KeyCode::Left, Move(Direction::WEST));
+        input_map.insert(GamepadButtonType::DPadLeft, Move(Direction::WEST));
+
+        input_map.insert(KeyCode::Right, Move(Direction::EAST));
+        input_map.insert(GamepadButtonType::DPadRight, Move(Direction::EAST));
+
+        input_map
+    }
+}
+
 fn start_play(
     mut query: Query<(&ActionState<PlayerAction>, &Player)>,
     mut transition_writer: EventWriter<TransitionEvent>,
@@ -183,17 +213,17 @@ fn pause_play(
     }
 }
 
-fn move_planets(
-    mut query: Query<(Entity, &ActionState<PlanetAction>, &Player)>,
-    mut planet_state_events: EventWriter<PlanetStateEvent>,
+fn change_planets(
+    mut query: Query<(Entity, &ActionState<PlanetAction>, &Focus), With<Player>>,
+    mut planet_state_events: EventWriter<PlanetChangeEvent>,
     mut planets: Query<&mut Planet>,
 ) {
-    for (emitter, action_state, player) in query.iter_mut() {
+    for (emitter, action_state, focus) in query.iter_mut() {
         // We need a valid target (planet) in order to move it
-        let Some(target) =  player.target else {
+        let Focus(Some(target)) =  focus else {
             continue;
         };
-        let Ok(mut planet) = planets.get_mut(target) else {
+        let Ok(mut planet) = planets.get_mut(*target) else {
             continue;
         };
         let mut intended_direction = Vec2::ZERO;
@@ -228,7 +258,7 @@ fn move_planets(
         //     .unwrap_or(planet.size);
 
         if planet.state != next_state {
-            planet_state_events.send(PlanetStateEvent {
+            planet_state_events.send(PlanetChangeEvent {
                 movement_state: next_state,
                 size: 0.0,
                 emitter,
