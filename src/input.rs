@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use leafwing_input_manager::orientation::Direction;
 use leafwing_input_manager::prelude::*;
 
-use crate::{GameState, MovementState, Planet, SimulationSet};
+use crate::{state_machine::TransitionEvent, GameState, MovementState, Planet, SimulationSet};
 
 // This plugin maps inputs to an input-type agnostic action-state
 // We need to provide it with an enum which stores the possible actions a player could take
@@ -14,29 +14,30 @@ impl Plugin for InputPlugin {
             .add_plugin(InputManagerPlugin::<PlayerAction>::default())
             .add_event::<PlanetStateEvent>()
             .add_systems(
-                (prepare_planets,)
-                    .distributive_run_if(in_state(GameState::Prepare))
-                    .in_set(SimulationSet::Input),
-            )
-            .add_systems(
                 (setup_player,)
                     .in_set(SimulationSet::Logic)
-                    .in_schedule(OnEnter(GameState::Prepare)),
+                    .in_schedule(OnEnter(GameState::Preparation)),
+            )
+            .add_systems(
+                (move_planets,)
+                    .distributive_run_if(in_state(GameState::Preparation))
+                    .in_set(SimulationSet::Input),
             )
             .add_systems(
                 (start_play,)
                     .in_set(SimulationSet::Logic)
-                    .distributive_run_if(in_state(GameState::Prepare)),
+                    .distributive_run_if(in_state(GameState::Preparation)),
             )
-            .add_systems(
-                (resume_play,)
+            // TODO: This is where we'd use a stack likely
+            .add_system(
+                resume_play
                     .in_set(SimulationSet::Logic)
-                    .distributive_run_if(in_state(GameState::Paused)),
+                    .run_if(in_state(GameState::Playing).or_else(in_state(GameState::Preparation))),
             )
-            .add_systems(
-                (pause_play,)
+            .add_system(
+                pause_play
                     .in_set(SimulationSet::Logic)
-                    .distributive_run_if(in_state(GameState::Playing)),
+                    .run_if(in_state(GameState::Playing).or_else(in_state(GameState::Preparation))),
             );
     }
 }
@@ -68,6 +69,7 @@ pub struct PlanetStateEvent {
 
 pub enum PlayerNumber {
     One,
+
     Two,
 }
 
@@ -150,38 +152,38 @@ impl PlayerAction {
 
 fn start_play(
     mut query: Query<(&ActionState<PlayerAction>, &Player)>,
-    mut next_state: ResMut<NextState<GameState>>,
+    mut transition_writer: EventWriter<TransitionEvent>,
 ) {
     for (action_state, _player) in query.iter_mut() {
         if action_state.just_pressed(PlayerAction::Continue) {
-            next_state.0 = Some(GameState::Playing);
+            transition_writer.send(TransitionEvent::StartPlay);
         }
     }
 }
 
 fn resume_play(
     mut query: Query<(&ActionState<PlayerAction>, &Player)>,
-    mut next_state: ResMut<NextState<GameState>>,
+    mut transition_writer: EventWriter<TransitionEvent>,
 ) {
     for (action_state, _player) in query.iter_mut() {
         if action_state.just_pressed(PlayerAction::Continue) {
-            next_state.0 = Some(GameState::Playing);
+            transition_writer.send(TransitionEvent::UnpauseGame);
         }
     }
 }
 
 fn pause_play(
     mut query: Query<(&ActionState<PlayerAction>, &Player)>,
-    mut next_state: ResMut<NextState<GameState>>,
+    mut transition_writer: EventWriter<TransitionEvent>,
 ) {
     for (action_state, _player) in query.iter_mut() {
         if action_state.just_pressed(PlayerAction::Pause) {
-            next_state.0 = Some(GameState::Paused);
+            transition_writer.send(TransitionEvent::PauseGame);
         }
     }
 }
 
-fn prepare_planets(
+fn move_planets(
     mut query: Query<(Entity, &ActionState<PlanetAction>, &Player)>,
     mut planet_state_events: EventWriter<PlanetStateEvent>,
     mut planets: Query<&mut Planet>,
@@ -194,7 +196,6 @@ fn prepare_planets(
         let Ok(mut planet) = planets.get_mut(target) else {
             continue;
         };
-
         let mut intended_direction = Vec2::ZERO;
 
         [

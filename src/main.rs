@@ -13,6 +13,7 @@ use noisy_bevy::NoisyShaderPlugin;
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use saving::SavingPlugin;
 use sounds::SoundsPlugin;
+use state_machine::{GameState, GameStateMachinePlugin};
 use strum::IntoEnumIterator;
 
 use crate::assets::environment::PlanetType;
@@ -20,9 +21,12 @@ use crate::assets::environment::PlanetType;
 mod assets;
 mod graphics;
 mod input;
+mod level_selection;
 mod music;
 mod saving;
 mod sounds;
+mod state_machine;
+mod utility;
 
 const WINDOW_WIDTH: f32 = 800.0;
 const WINDOW_HEIGHT: f32 = 600.0;
@@ -54,9 +58,9 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.1)))
         .add_state::<GameState>()
         .add_loading_state(
-            LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::Prepare),
+            LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::LevelSelection),
         )
-        // TODO: Loading these assets shold be in graphics
+        // TODO: Loading these assets shold be in graphics no?
         .add_collection_to_loading_state::<_, PlanetCollection>(GameState::AssetLoading)
         .insert_resource(AmbientLight {
             color: Color::WHITE,
@@ -67,7 +71,7 @@ fn main() {
                 .chain()
                 .in_base_set(CoreSet::Update),
         )
-        .add_systems((setup_level_gen,).in_schedule(OnEnter(GameState::Prepare)))
+        .add_systems((setup_level_gen,).in_schedule(OnEnter(GameState::Preparation)))
         .add_systems((resume_physics,).in_schedule(OnEnter(GameState::Playing)))
         .add_systems((pause_physics,).in_schedule(OnExit(GameState::Playing)))
         .add_systems(
@@ -80,6 +84,7 @@ fn main() {
                 .distributive_run_if(in_state(GameState::Playing))
                 .in_set(SimulationSet::Logic),
         )
+        .add_plugin(GameStateMachinePlugin)
         .add_plugin(NoisyShaderPlugin)
         .add_plugin(InputPlugin)
         // .add_plugin(SavingPlugin)
@@ -148,22 +153,6 @@ pub enum SimulationSet {
     Input,
 
     Logic,
-}
-
-#[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
-enum GameState {
-    #[default]
-    AssetLoading,
-
-    /// The player is sizing the planets, moving them around, etc.
-    Prepare,
-
-    /// The simulation (gravity and so on) is running
-    Playing,
-
-    Paused,
-
-    GameOver,
 }
 
 fn pause_physics(mut physics_loop: ResMut<PhysicsLoop>) {

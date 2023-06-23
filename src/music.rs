@@ -8,8 +8,8 @@ pub struct MusicPlugin;
 impl Plugin for MusicPlugin {
     fn build(&self, app: &mut App) {
         app.add_collection_to_loading_state::<_, MusicCollection>(GameState::AssetLoading)
-            .add_systems((setup,).in_schedule(OnEnter(GameState::Prepare)))
-            .add_systems((teardown,).in_schedule(OnExit(GameState::Prepare)));
+            .add_systems((setup,).in_schedule(OnEnter(GameState::Preparation)))
+            .add_systems((teardown,).in_schedule(OnExit(GameState::Preparation)));
     }
 }
 

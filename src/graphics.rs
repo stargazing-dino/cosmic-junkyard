@@ -15,7 +15,7 @@ impl Plugin for GraphicsPlugin {
         app.add_systems(
             (setup_graphics,)
                 .in_set(SimulationSet::Logic)
-                .in_schedule(OnEnter(GameState::Prepare)),
+                .in_schedule(OnEnter(GameState::Preparation)),
         )
         .add_systems(
             (update_bounds,)
