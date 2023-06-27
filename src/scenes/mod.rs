@@ -1,12 +1,28 @@
 #![allow(dead_code)]
 use bevy::prelude::*;
 
+use self::{
+    game::GamePlugin, level_selection::LevelSelectionPlugin, main_menu::MainMenuPlugin,
+    player_input::PlayerInputPlugin, settings_dialog::SettingsDialogPlugin,
+};
+
+mod game;
+mod level_selection;
+mod main_menu;
+mod player_input;
+mod settings_dialog;
+
 pub struct GameStateMachinePlugin;
 
 impl Plugin for GameStateMachinePlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<TransitionEvent>()
             .init_resource::<PreviousState<GameState>>()
+            .add_plugin(PlayerInputPlugin)
+            .add_plugin(GamePlugin)
+            .add_plugin(LevelSelectionPlugin)
+            .add_plugin(MainMenuPlugin)
+            .add_plugin(SettingsDialogPlugin)
             .add_system(apply_transition);
     }
 }

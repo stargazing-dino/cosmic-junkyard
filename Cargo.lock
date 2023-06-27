@@ -1304,7 +1304,6 @@ dependencies = [
  "bevy_xpbd_3d",
  "embed-resource",
  "leafwing-input-manager",
- "noisy_bevy",
  "rand",
  "strum",
  "strum_macros",
@@ -2321,15 +2320,6 @@ dependencies = [
  "cfg-if",
  "libc",
  "static_assertions",
-]
-
-[[package]]
-name = "noisy_bevy"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c1cf42b345c23c91f034e11750156005a9d154cc8a3d0d73a68b9a092af45ac"
-dependencies = [
- "bevy",
 ]
 
 [[package]]

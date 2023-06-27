@@ -1,26 +1,19 @@
 use bevy::prelude::*;
 
-use crate::{state_machine::GameState, utility::despawn_components, SimulationSet};
+use crate::utility::despawn_components;
+
+use super::GameState;
 
 pub struct LevelSelectionPlugin;
 
 impl Plugin for LevelSelectionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            (setup,)
-                .in_set(SimulationSet::Logic)
-                .in_schedule(OnEnter(GameState::LevelSelection)),
-        )
-        .add_systems(
-            (button_system,)
-                .distributive_run_if(in_state(GameState::LevelSelection))
-                .in_set(SimulationSet::Logic),
-        )
-        .add_systems(
-            (despawn_components::<OnLevelSelect>,)
-                .in_set(SimulationSet::Logic)
-                .in_schedule(OnExit(GameState::LevelSelection)),
-        );
+        app.add_systems((setup,).in_schedule(OnEnter(GameState::LevelSelection)))
+            .add_systems((button_system,).distributive_run_if(in_state(GameState::LevelSelection)))
+            .add_systems(
+                (despawn_components::<OnLevelSelect>,)
+                    .in_schedule(OnExit(GameState::LevelSelection)),
+            );
     }
 }
 
@@ -67,7 +60,7 @@ pub struct OnLevelSelect;
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // ui camera
-    commands.spawn(Camera2dBundle::default());
+    // commands.spawn(Camera2dBundle::default());
     commands
         .spawn(NodeBundle {
             style: Style {

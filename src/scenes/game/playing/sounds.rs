@@ -3,7 +3,9 @@ use std::time::Duration;
 use bevy::{prelude::*, time::Stopwatch};
 use bevy_asset_loader::prelude::LoadingStateAppExt;
 
-use crate::{assets::sounds::SoundCollection, GameState, JunkCollision};
+use crate::{assets::sounds::SoundCollection, scenes::GameState};
+
+use super::JunkCollision;
 
 pub struct SoundsPlugin;
 
