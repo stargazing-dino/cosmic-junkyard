@@ -32,11 +32,11 @@ impl Plugin for GamePlugin {
             // TODO: This is where we'd use a stack likely
             .add_system(
                 resume_play
-                    .run_if(in_state(GameState::Playing).or_else(in_state(GameState::Preparation))),
+                    .run_if(in_state(GameState::Playing).or_else(in_state(GameState::Prepare))),
             )
             .add_system(
                 pause_play
-                    .run_if(in_state(GameState::Playing).or_else(in_state(GameState::Preparation))),
+                    .run_if(in_state(GameState::Playing).or_else(in_state(GameState::Prepare))),
             );
     }
 }

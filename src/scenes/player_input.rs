@@ -11,23 +11,19 @@ pub struct PlayerInputPlugin;
 impl Plugin for PlayerInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(InputManagerPlugin::<UiAction>::default())
-            .add_systems((setup_player,).in_schedule(OnEnter(GameState::Preparation)));
+            .add_systems((setup_player,).in_schedule(OnEnter(GameState::Prepare)));
     }
 }
 
 fn setup_player(mut commands: Commands) {
-    commands.spawn((PlayerBundle {
+    commands.spawn(PlayerBundle {
         player: Player::default(),
         focus: Focus(None),
         ui_action_manager: InputManagerBundle {
             input_map: UiAction::default_input_map(),
             ..default()
         },
-        // player_action_manager: InputManagerBundle {
-        //     input_map: PlayerAction::default_input_map(),
-        //     ..default()
-        // },
-    },));
+    });
 }
 
 pub enum PlayerNumber {

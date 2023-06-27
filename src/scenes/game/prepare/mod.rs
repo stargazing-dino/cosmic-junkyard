@@ -15,9 +15,10 @@ use crate::{
     utility::collider_from_gltf,
 };
 
+use self::{input::InputPlugin, music::MusicPlugin};
+
 use super::{Junk, MovementState, Planet, PlanetBundle};
 
-mod graphics;
 mod input;
 mod music;
 
@@ -25,7 +26,9 @@ pub struct PreparePlugin;
 
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems((setup_level_gen,).in_schedule(OnEnter(GameState::Preparation)));
+        app.add_plugin(MusicPlugin)
+            .add_plugin(InputPlugin)
+            .add_systems((setup_level_gen,).in_schedule(OnEnter(GameState::Prepare)));
     }
 }
 

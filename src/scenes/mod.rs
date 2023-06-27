@@ -19,8 +19,7 @@ impl Plugin for GameStateMachinePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameState>()
             .add_loading_state(
-                LoadingState::new(GameState::AssetLoading)
-                    .continue_to_state(GameState::LevelSelection),
+                LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::Playing),
             )
             .add_event::<TransitionEvent>()
             .init_resource::<PreviousState<GameState>>()
@@ -46,7 +45,7 @@ pub enum GameState {
     LevelSelection,
 
     /// The user is configuring their level
-    Preparation,
+    Prepare,
 
     /// The game/simulation is running
     Playing,
@@ -88,18 +87,16 @@ fn apply_transition(
             (Start, TransitionEvent::NewGame) => LevelSelection,
             (LevelSelection, TransitionEvent::SelectLevel(level)) => {
                 // Prolly want to load level data and stuff
-                Preparation
+                Prepare
             }
-            (LevelFailed, TransitionEvent::RetryLevel) => Preparation,
-            (LevelComplete, TransitionEvent::RetryLevel) => Preparation,
+            (LevelFailed, TransitionEvent::RetryLevel) => Prepare,
+            (LevelComplete, TransitionEvent::RetryLevel) => Prepare,
             (PlanetaryConfiguration, TransitionEvent::PrepareLevel) => PlanetaryConfiguration,
             (PlanetaryConfiguration, TransitionEvent::StartPlay) => Playing,
             (Playing, TransitionEvent::LevelCompleted) => LevelComplete,
             (Playing, TransitionEvent::LevelFailed) => LevelFailed,
             (LevelComplete, TransitionEvent::NextLevel(level)) => LevelSelection,
-            (Preparation, TransitionEvent::PauseGame) | (Playing, TransitionEvent::PauseGame) => {
-                Paused
-            }
+            (Prepare, TransitionEvent::PauseGame) | (Playing, TransitionEvent::PauseGame) => Paused,
             (Pause, TransitionEvent::UnpauseGame) => previous_state.0.as_ref().unwrap().clone(),
             _ => panic!("Invalid state transition"),
         };

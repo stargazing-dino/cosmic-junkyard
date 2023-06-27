@@ -16,8 +16,8 @@ impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<PlanetChangeEvent>()
             .add_plugin(InputManagerPlugin::<PlanetAction>::default())
-            .add_system(setup.in_schedule(OnEnter(GameState::Preparation)))
-            .add_system(change_planets.run_if(in_state(GameState::Preparation)));
+            .add_system(setup.in_schedule(OnEnter(GameState::Prepare)))
+            .add_system(change_planets.run_if(in_state(GameState::Prepare)));
     }
 }
 

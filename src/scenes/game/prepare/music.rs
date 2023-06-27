@@ -1,12 +1,13 @@
 use bevy::prelude::*;
 
-use crate::assets::music::MusicCollection;
+use crate::{assets::music::MusicCollection, scenes::GameState};
 
 pub struct MusicPlugin;
 
 impl Plugin for MusicPlugin {
     fn build(&self, app: &mut App) {
-        app;
+        app.add_system(setup.in_schedule(OnEnter(GameState::Prepare)))
+            .add_system(teardown.in_schedule(OnExit(GameState::Prepare)));
     }
 }
 
