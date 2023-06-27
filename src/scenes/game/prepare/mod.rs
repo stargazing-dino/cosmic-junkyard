@@ -12,6 +12,7 @@ use strum::IntoEnumIterator;
 use crate::{
     assets::environment::{PlanetCollection, PlanetType},
     scenes::GameState,
+    utility::collider_from_gltf,
 };
 
 use super::{Junk, MovementState, Planet, PlanetBundle};
@@ -109,13 +110,9 @@ fn setup_level_gen(
 
     for position in positions.iter() {
         let planet_type = planet_types.choose(&mut rng).unwrap();
-        let (scene, collider) = create_collider(
-            *planet_type,
-            &planet_collection,
-            &gltf_assets,
-            &gltf_meshes,
-            &mut meshes,
-        );
+        let gltf_handle = planet_type.model_from(&planet_collection);
+        let (scene, collider) =
+            collider_from_gltf(gltf_handle, &gltf_assets, &gltf_meshes, &mut meshes);
         // let x = rng.gen_range(-20..=20);
         // let y = rng.gen_range(-14..=14);
 

@@ -2,13 +2,15 @@ use bevy::prelude::*;
 use leafwing_input_manager::orientation::Direction;
 use leafwing_input_manager::prelude::*;
 
+use super::GameState;
+
 // This plugin maps inputs to an input-type agnostic action-state
 // We need to provide it with an enum which stores the possible actions a player could take
 pub struct PlayerInputPlugin;
 
 impl Plugin for PlayerInputPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(InputManagerPlugin::<PlayerAction>::default())
+        app.add_plugin(InputManagerPlugin::<UiAction>::default())
             .add_systems((setup_player,).in_schedule(OnEnter(GameState::Preparation)));
     }
 }
@@ -17,10 +19,10 @@ fn setup_player(mut commands: Commands) {
     commands.spawn((PlayerBundle {
         player: Player::default(),
         focus: Focus(None),
-        // planet_action_manager: InputManagerBundle {
-        //     input_map: PlanetAction::default_input_map(),
-        //     ..default()
-        // },
+        ui_action_manager: InputManagerBundle {
+            input_map: UiAction::default_input_map(),
+            ..default()
+        },
         // player_action_manager: InputManagerBundle {
         //     input_map: PlayerAction::default_input_map(),
         //     ..default()
@@ -35,7 +37,7 @@ pub enum PlayerNumber {
 }
 
 #[derive(Component)]
-pub struct Focus(Option<Entity>);
+pub struct Focus(pub Option<Entity>);
 
 // I think having cursor related stuff in the player might be good?
 #[derive(Component)]
@@ -56,6 +58,8 @@ pub struct PlayerBundle {
     pub player: Player,
 
     pub focus: Focus,
+
+    pub ui_action_manager: InputManagerBundle<UiAction>,
 }
 
 #[derive(Actionlike, PartialEq, Clone, Copy, Debug)]

@@ -1,9 +1,14 @@
 use bevy::prelude::{
-    in_state, App, Entity, EventWriter, GamepadButtonType, KeyCode, Plugin, Query, Vec2, With,
+    default, in_state, App, Commands, Entity, EventWriter, GamepadButtonType, IntoSystemAppConfig,
+    IntoSystemConfig, KeyCode, OnEnter, Plugin, Query, Vec2, With,
 };
 use leafwing_input_manager::{orientation::Direction, prelude::*, Actionlike};
 
-use crate::scenes::{game::Planet, player_input::Focus, GameState};
+use crate::scenes::{
+    game::{MovementState, Planet},
+    player_input::{Focus, Player},
+    GameState,
+};
 
 pub struct InputPlugin;
 
@@ -11,10 +16,23 @@ impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<PlanetChangeEvent>()
             .add_plugin(InputManagerPlugin::<PlanetAction>::default())
-            .add_systems((change_planets,).distributive_run_if(in_state(GameState::Preparation)))
-            .add_system(change_planets);
+            .add_system(setup.in_schedule(OnEnter(GameState::Preparation)))
+            .add_system(change_planets.run_if(in_state(GameState::Preparation)));
     }
 }
+
+fn setup(mut commands: Commands) {
+    commands.spawn(InputManagerBundle {
+        input_map: PlanetAction::default_input_map(),
+        ..default()
+    });
+}
+
+// fn teardown(mut commands: Commands, query: Query<Entity, With<InputManager<PlanetAction>>>) {
+//     for entity in query.iter() {
+//         commands.entity(entity).despawn_recursive();
+//     }
+// }
 
 #[derive(Actionlike, PartialEq, Clone, Copy, Debug)]
 pub enum PlanetAction {
@@ -43,6 +61,14 @@ impl PlanetAction {
 
         input_map
     }
+}
+
+pub struct PlanetChangeEvent {
+    pub movement_state: MovementState,
+
+    pub size: f32,
+
+    pub emitter: Entity,
 }
 
 fn change_planets(

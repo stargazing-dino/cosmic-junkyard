@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use bevy::prelude::*;
+use bevy_asset_loader::prelude::{LoadingState, LoadingStateAppExt};
 
 use self::{
     game::GamePlugin, level_selection::LevelSelectionPlugin, main_menu::MainMenuPlugin,
@@ -16,7 +17,12 @@ pub struct GameStateMachinePlugin;
 
 impl Plugin for GameStateMachinePlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<TransitionEvent>()
+        app.add_state::<GameState>()
+            .add_loading_state(
+                LoadingState::new(GameState::AssetLoading)
+                    .continue_to_state(GameState::LevelSelection),
+            )
+            .add_event::<TransitionEvent>()
             .init_resource::<PreviousState<GameState>>()
             .add_plugin(PlayerInputPlugin)
             .add_plugin(GamePlugin)

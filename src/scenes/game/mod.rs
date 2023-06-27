@@ -1,18 +1,16 @@
-use bevy::{
-    gltf::{Gltf, GltfMesh},
-    prelude::*,
-    render::camera::ScalingMode,
-    window::PrimaryWindow,
-};
+use bevy::{prelude::*, render::camera::ScalingMode, window::PrimaryWindow};
 use bevy_asset_loader::prelude::*;
-use bevy_xpbd_3d::{prelude::*, resources::Gravity};
+use bevy_xpbd_3d::{
+    prelude::{Friction, Mass, PhysicsPlugins, Position, RigidBody},
+    resources::Gravity,
+};
 use leafwing_input_manager::{prelude::*, Actionlike};
 
 use crate::assets::environment::{PlanetCollection, PlanetType};
 
-use self::playing::JunkCollision;
+use self::{playing::PlayingPlugin, prepare::PreparePlugin};
 
-use super::{GameState, TransitionEvent};
+use super::{player_input::Player, GameState, TransitionEvent};
 
 mod playing;
 mod prepare;
@@ -21,18 +19,11 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<GameState>()
-            .add_loading_state(
-                LoadingState::new(GameState::AssetLoading)
-                    .continue_to_state(GameState::LevelSelection),
-            )
-            .add_plugins(PhysicsPlugins)
-            .add_event::<JunkCollision>()
-            .insert_resource(Bounds::default())
+        app.add_plugins(PhysicsPlugins)
             .insert_resource(Gravity::ZERO)
-            // An outer space dark purple
-            // .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.1)))
-            // TODO: Loading these assets shold be in graphics no?
+            .add_plugin(PreparePlugin)
+            .add_plugin(PlayingPlugin)
+            .insert_resource(Bounds::default())
             .add_collection_to_loading_state::<_, PlanetCollection>(GameState::AssetLoading)
             .insert_resource(AmbientLight {
                 color: Color::WHITE,
