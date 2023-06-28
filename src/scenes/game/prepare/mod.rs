@@ -6,12 +6,13 @@ use bevy::{
     render::camera::ScalingMode,
 };
 use bevy_xpbd_3d::prelude::*;
+use leafwing_input_manager::prelude::ActionState;
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use strum::IntoEnumIterator;
 
 use crate::{
     assets::environment::{PlanetCollection, PlanetType},
-    scenes::GameState,
+    scenes::{GameState, TransitionEvent},
     utility::collider_from_gltf,
 };
 
@@ -28,7 +29,9 @@ impl Plugin for PreparePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(MusicPlugin)
             .add_plugin(InputPlugin)
-            .add_systems((setup_level_gen,).in_schedule(OnEnter(GameState::Prepare)));
+            .add_systems(
+                (setup_graphics, setup_level_gen).in_schedule(OnEnter(GameState::Prepare)),
+            );
     }
 }
 
@@ -167,3 +170,14 @@ fn setup_level_gen(
         Junk {},
     ));
 }
+
+// fn start_play(
+//     mut query: Query<(&ActionState<PlayerAction>, &Player)>,
+//     mut transition_writer: EventWriter<TransitionEvent>,
+// ) {
+//     for (action_state, _player) in query.iter_mut() {
+//         if action_state.just_pressed(PlayerAction::Continue) {
+//             transition_writer.send(TransitionEvent::StartPlay);
+//         }
+//     }
+// }

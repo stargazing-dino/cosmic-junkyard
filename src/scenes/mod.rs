@@ -8,6 +8,7 @@ use self::{
 };
 
 mod game;
+mod game_levels;
 mod level_selection;
 mod main_menu;
 mod player_input;
