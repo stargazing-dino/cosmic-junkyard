@@ -42,10 +42,10 @@ pub enum GameState {
     AssetLoading,
 
     /// The user is selecting a level to play
-    LevelSelection,
-
-    /// The user is selecting a level to play
     MainMenu,
+
+    /// The user wants to navigate to level selection
+    LevelSelection,
 
     /// The user is configuring their level
     Prepare,
@@ -64,8 +64,8 @@ pub enum GameState {
 }
 
 pub enum TransitionEvent {
-    NewGame,
-    SelectLevel(Option<usize>),
+    LevelSelection,
+    SelectLevel(usize),
     PrepareLevel,
     RetryLevel,
     StartPlay,
@@ -88,20 +88,19 @@ fn apply_transition(
 
     for transition_event in transition_event_reader.iter() {
         let next_queued = match (current_state.0.clone(), transition_event) {
-            (Start, TransitionEvent::NewGame) => LevelSelection,
+            (MainMenu, TransitionEvent::LevelSelection) => LevelSelection,
             (LevelSelection, TransitionEvent::SelectLevel(level)) => {
                 // Prolly want to load level data and stuff
                 Prepare
             }
+            (Prepare, TransitionEvent::StartPlay) => Playing,
+            (LevelComplete, TransitionEvent::NextLevel(level)) => LevelSelection,
             (LevelFailed, TransitionEvent::RetryLevel) => Prepare,
             (LevelComplete, TransitionEvent::RetryLevel) => Prepare,
-            (PlanetaryConfiguration, TransitionEvent::PrepareLevel) => PlanetaryConfiguration,
-            (PlanetaryConfiguration, TransitionEvent::StartPlay) => Playing,
             (Playing, TransitionEvent::LevelCompleted) => LevelComplete,
             (Playing, TransitionEvent::LevelFailed) => LevelFailed,
-            (LevelComplete, TransitionEvent::NextLevel(level)) => LevelSelection,
             (Prepare, TransitionEvent::PauseGame) | (Playing, TransitionEvent::PauseGame) => Paused,
-            (Pause, TransitionEvent::UnpauseGame) => previous_state.0.as_ref().unwrap().clone(),
+            (Paused, TransitionEvent::UnpauseGame) => previous_state.0.as_ref().unwrap().clone(),
             _ => panic!("Invalid state transition"),
         };
 

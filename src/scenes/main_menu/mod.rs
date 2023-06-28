@@ -2,7 +2,10 @@ use bevy::prelude::*;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-use crate::utility::despawn_components;
+use crate::{
+    utility::{button_interactions, despawn_components},
+    TEXT_COLOR,
+};
 
 use super::{GameState, TransitionEvent};
 
@@ -11,7 +14,11 @@ pub struct MainMenuPlugin;
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems((setup,).in_schedule(OnEnter(GameState::MainMenu)))
-            .add_system(button_colors.run_if(in_state(GameState::MainMenu)))
+            .add_systems(
+                // TODO: Maybe this should be top level system?
+                (button_interactions, main_menu_actions)
+                    .distributive_run_if(in_state(GameState::MainMenu)),
+            )
             .add_systems(
                 (despawn_components::<MainMenuMarker>,).in_schedule(OnExit(GameState::MainMenu)),
             );
@@ -20,12 +27,6 @@ impl Plugin for MainMenuPlugin {
 
 #[derive(Component)]
 pub struct MainMenuMarker;
-
-const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
-const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
-const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
-const HOVERED_PRESSED_BUTTON: Color = Color::rgb(0.25, 0.65, 0.25);
-const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
 
 // All actions that can be triggered from a button click
 #[derive(Component, Debug, Copy, Clone, EnumIter)]
@@ -162,7 +163,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                     .spawn((
                                         ButtonBundle {
                                             style: button_style.clone(),
-                                            background_color: NORMAL_BUTTON.into(),
+                                            background_color: Color::WHITE.into(),
                                             ..default()
                                         },
                                         action,
@@ -179,28 +180,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         });
 }
 
-fn button_colors(
-    mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<Button>),
-    >,
-) {
-    for (interaction, mut color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Clicked => {
-                *color = PRESSED_BUTTON.into();
-            }
-            Interaction::Hovered => {
-                *color = HOVERED_BUTTON.into();
-            }
-            Interaction::None => {
-                *color = NORMAL_BUTTON.into();
-            }
-        }
-    }
-}
-
-fn button_system(
+fn main_menu_actions(
     mut interaction_query: Query<
         (&Interaction, &MenuButtonAction),
         (Changed<Interaction>, With<Button>),
@@ -218,7 +198,7 @@ fn button_system(
                 // transition_writer.send(TransitionEvent::Continue);
             }
             MenuButtonAction::SelectLevel => {
-                transition_writer.send(TransitionEvent::SelectLevel(None));
+                transition_writer.send(TransitionEvent::LevelSelection);
             }
             MenuButtonAction::Settings => {
                 transition_writer.send(TransitionEvent::Settings);
