@@ -147,16 +147,16 @@ impl PlayerAction {
     }
 }
 
-fn start_play(
-    mut query: Query<(&ActionState<PlayerAction>, &Player)>,
-    mut transition_writer: EventWriter<TransitionEvent>,
-) {
-    for (action_state, _player) in query.iter_mut() {
-        if action_state.just_pressed(PlayerAction::Continue) {
-            transition_writer.send(TransitionEvent::StartPlay);
-        }
-    }
-}
+// fn start_play(
+//     mut query: Query<(&ActionState<PlayerAction>, &Player)>,
+//     mut transition_writer: EventWriter<TransitionEvent>,
+// ) {
+//     for (action_state, _player) in query.iter_mut() {
+//         if action_state.just_pressed(PlayerAction::Continue) {
+//             transition_writer.send(TransitionEvent::StartPlay);
+//         }
+//     }
+// }
 
 fn resume_play(
     mut query: Query<(&ActionState<PlayerAction>, &Player)>,

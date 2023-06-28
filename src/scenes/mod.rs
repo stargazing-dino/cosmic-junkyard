@@ -18,15 +18,15 @@ pub struct GameStateMachinePlugin;
 impl Plugin for GameStateMachinePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameState>()
-            .add_loading_state(
-                LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::Playing),
-            )
             .add_event::<TransitionEvent>()
             .init_resource::<PreviousState<GameState>>()
+            .add_loading_state(
+                LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::MainMenu),
+            )
             .add_plugin(PlayerInputPlugin)
+            .add_plugin(MainMenuPlugin)
             .add_plugin(GamePlugin)
             .add_plugin(LevelSelectionPlugin)
-            .add_plugin(MainMenuPlugin)
             .add_plugin(SettingsDialogPlugin)
             .add_system(apply_transition);
     }
@@ -43,6 +43,9 @@ pub enum GameState {
 
     /// The user is selecting a level to play
     LevelSelection,
+
+    /// The user is selecting a level to play
+    MainMenu,
 
     /// The user is configuring their level
     Prepare,
@@ -62,7 +65,7 @@ pub enum GameState {
 
 pub enum TransitionEvent {
     NewGame,
-    SelectLevel(usize),
+    SelectLevel(Option<usize>),
     PrepareLevel,
     RetryLevel,
     StartPlay,
@@ -72,6 +75,7 @@ pub enum TransitionEvent {
     LevelFailed,
     NextLevel(usize),
     Quit,
+    Settings,
 }
 
 fn apply_transition(
