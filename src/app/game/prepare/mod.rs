@@ -6,19 +6,17 @@ use bevy::{
     render::camera::ScalingMode,
 };
 use bevy_xpbd_3d::prelude::*;
-use leafwing_input_manager::prelude::ActionState;
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use strum::IntoEnumIterator;
 
 use crate::{
     assets::environment::{PlanetCollection, PlanetType},
-    scenes::{GameState, TransitionEvent},
     utility::collider_from_gltf,
 };
 
 use self::{input::InputPlugin, music::MusicPlugin};
 
-use super::{Junk, MovementState, Planet, PlanetBundle};
+use super::{game_state_machine::GameState, Junk, MovementState, Planet, PlanetBundle};
 
 mod input;
 mod music;
@@ -30,7 +28,7 @@ impl Plugin for PreparePlugin {
         app.add_plugin(MusicPlugin)
             .add_plugin(InputPlugin)
             .add_systems(
-                (setup_graphics, setup_level_gen).in_schedule(OnEnter(GameState::Prepare)),
+                (setup_graphics, setup_level_gen).in_schedule(OnEnter(GameState::Preparing)),
             );
     }
 }

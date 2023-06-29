@@ -5,20 +5,20 @@ use crate::{
     NORMAL_BUTTON,
 };
 
-use super::{game_levels::LEVELS, GameState, TransitionEvent};
+use super::{app_state_machine::AppTransitionEvent, game_levels::LEVELS, AppState};
 
 pub struct LevelSelectionPlugin;
 
 impl Plugin for LevelSelectionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems((setup,).in_schedule(OnEnter(GameState::LevelSelection)))
+        app.add_systems((setup,).in_schedule(OnEnter(AppState::LevelSelection)))
             .add_systems(
                 (button_interactions, select_level_action)
-                    .distributive_run_if(in_state(GameState::LevelSelection)),
+                    .distributive_run_if(in_state(AppState::LevelSelection)),
             )
             .add_systems(
                 (despawn_components::<LevelSelectionMarker>,)
-                    .in_schedule(OnExit(GameState::LevelSelection)),
+                    .in_schedule(OnExit(AppState::LevelSelection)),
             );
     }
 }
@@ -82,7 +82,7 @@ fn select_level_action(
         (&Interaction, &SelectLevelButton),
         (Changed<Interaction>, With<Button>),
     >,
-    mut transition_writer: EventWriter<TransitionEvent>,
+    mut transition_writer: EventWriter<AppTransitionEvent>,
 ) {
     for (interaction, button) in &mut interaction_query {
         // check if interaction is clicked
@@ -90,6 +90,6 @@ fn select_level_action(
             continue;
         };
 
-        transition_writer.send(TransitionEvent::SelectLevel(button.0));
+        transition_writer.send(AppTransitionEvent::SelectLevel(Some(button.0)));
     }
 }

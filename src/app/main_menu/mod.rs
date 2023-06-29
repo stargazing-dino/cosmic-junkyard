@@ -7,20 +7,20 @@ use crate::{
     TEXT_COLOR,
 };
 
-use super::{GameState, TransitionEvent};
+use super::{app_state_machine::AppTransitionEvent, AppState};
 
 pub struct MainMenuPlugin;
 
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems((setup,).in_schedule(OnEnter(GameState::MainMenu)))
+        app.add_systems((setup,).in_schedule(OnEnter(AppState::MainMenu)))
             .add_systems(
                 // TODO: Maybe this should be top level system?
                 (button_interactions, main_menu_actions)
-                    .distributive_run_if(in_state(GameState::MainMenu)),
+                    .distributive_run_if(in_state(AppState::MainMenu)),
             )
             .add_systems(
-                (despawn_components::<MainMenuMarker>,).in_schedule(OnExit(GameState::MainMenu)),
+                (despawn_components::<MainMenuMarker>,).in_schedule(OnExit(AppState::MainMenu)),
             );
     }
 }
@@ -185,7 +185,7 @@ fn main_menu_actions(
         (&Interaction, &MenuButtonAction),
         (Changed<Interaction>, With<Button>),
     >,
-    mut transition_writer: EventWriter<TransitionEvent>,
+    mut transition_writer: EventWriter<AppTransitionEvent>,
 ) {
     for (interaction, action) in &mut interaction_query {
         // check if interaction is clicked
@@ -195,13 +195,13 @@ fn main_menu_actions(
 
         match action {
             MenuButtonAction::Continue => {
-                // transition_writer.send(TransitionEvent::Continue);
+                transition_writer.send(AppTransitionEvent::Continue);
             }
             MenuButtonAction::SelectLevel => {
-                transition_writer.send(TransitionEvent::LevelSelection);
+                transition_writer.send(AppTransitionEvent::SelectLevel(None));
             }
             MenuButtonAction::Settings => {
-                transition_writer.send(TransitionEvent::Settings);
+                transition_writer.send(AppTransitionEvent::Settings);
             }
         }
     }

@@ -4,14 +4,18 @@ use bevy_xpbd_3d::{
     prelude::{Friction, Mass, PhysicsPlugins, Position, RigidBody},
     resources::Gravity,
 };
-use leafwing_input_manager::{prelude::*, Actionlike};
 
 use crate::assets::environment::{PlanetCollection, PlanetType};
 
-use self::{playing::PlayingPlugin, prepare::PreparePlugin};
+use self::{
+    game_state_machine::{GameState, GameStateMachinePlugin},
+    playing::PlayingPlugin,
+    prepare::PreparePlugin,
+};
 
-use super::{player_input::Player, GameState, TransitionEvent};
+use super::AppState;
 
+mod game_state_machine;
 mod playing;
 mod prepare;
 
@@ -19,25 +23,25 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(PhysicsPlugins)
+        app.add_collection_to_loading_state::<_, PlanetCollection>(AppState::AssetLoading)
+            .add_plugin(GameStateMachinePlugin)
+            .add_plugins(PhysicsPlugins)
             .insert_resource(Gravity::ZERO)
             .add_plugin(PreparePlugin)
             .add_plugin(PlayingPlugin)
             .insert_resource(Bounds::default())
-            .add_collection_to_loading_state::<_, PlanetCollection>(GameState::AssetLoading)
             .insert_resource(AmbientLight {
                 color: Color::WHITE,
                 brightness: 1.0 / 5.0f32,
-            })
-            // TODO: This is where we'd use a stack likely
-            .add_system(
-                resume_play
-                    .run_if(in_state(GameState::Playing).or_else(in_state(GameState::Prepare))),
-            )
-            .add_system(
-                pause_play
-                    .run_if(in_state(GameState::Playing).or_else(in_state(GameState::Prepare))),
-            );
+            });
+        // .add_system(
+        //     resume_play.run_if(
+        //         in_state(AppState::InGameLevel).and_then(in_state(GameState::Preparing)),
+        //     ),
+        // );
+        // .add_system(
+        //     pause_play.run_if(in_state(AppState::InGameLevel).or_else(in_state(AppState::Prepare))),
+        // );
     }
 }
 
@@ -126,45 +130,4 @@ fn update_bounds(
         camera_transform.x + horizontal_view / 2.0,
         camera_transform.y + vertical_view / 2.0,
     );
-}
-
-#[derive(Actionlike, PartialEq, Clone, Copy, Debug)]
-pub enum PlayerAction {
-    Pause,
-
-    Continue,
-}
-
-impl PlayerAction {
-    pub fn default_input_map() -> InputMap<Self> {
-        use PlayerAction::*;
-        let mut input_map = InputMap::default();
-
-        input_map.insert(KeyCode::Space, Continue);
-        input_map.insert(KeyCode::Space, Pause);
-
-        input_map
-    }
-}
-
-fn resume_play(
-    mut query: Query<(&ActionState<PlayerAction>, &Player)>,
-    mut transition_writer: EventWriter<TransitionEvent>,
-) {
-    for (action_state, _player) in query.iter_mut() {
-        if action_state.just_pressed(PlayerAction::Continue) {
-            transition_writer.send(TransitionEvent::UnpauseGame);
-        }
-    }
-}
-
-fn pause_play(
-    mut query: Query<(&ActionState<PlayerAction>, &Player)>,
-    mut transition_writer: EventWriter<TransitionEvent>,
-) {
-    for (action_state, _player) in query.iter_mut() {
-        if action_state.just_pressed(PlayerAction::Pause) {
-            transition_writer.send(TransitionEvent::PauseGame);
-        }
-    }
 }

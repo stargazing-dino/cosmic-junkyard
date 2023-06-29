@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use leafwing_input_manager::orientation::Direction;
 use leafwing_input_manager::prelude::*;
 
-use super::GameState;
+use super::AppState;
 
 // This plugin maps inputs to an input-type agnostic action-state
 // We need to provide it with an enum which stores the possible actions a player could take
@@ -11,7 +11,7 @@ pub struct PlayerInputPlugin;
 impl Plugin for PlayerInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(InputManagerPlugin::<UiAction>::default())
-            .add_systems((setup_player,).in_schedule(OnEnter(GameState::Prepare)));
+            .add_systems((setup_player,).in_schedule(OnEnter(AppState::InGameLevel)));
     }
 }
 

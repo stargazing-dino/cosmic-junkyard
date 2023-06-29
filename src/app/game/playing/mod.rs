@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
 
-use crate::scenes::GameState;
+use crate::app::AppState;
 
 use self::sounds::SoundsPlugin;
 
-use super::{Junk, Planet};
+use super::{game_state_machine::GameState, Junk, Planet};
 
 mod input;
 mod music;
@@ -17,7 +17,7 @@ impl Plugin for PlayingPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(SoundsPlugin)
             .add_event::<JunkCollision>()
-            .add_systems((resume_physics,).in_schedule(OnEnter(GameState::Playing)))
+            .add_systems((resume_physics,).in_schedule(OnEnter(GameState::Paused)))
             .add_systems((pause_physics,).in_schedule(OnExit(GameState::Playing)))
             .add_systems(
                 (

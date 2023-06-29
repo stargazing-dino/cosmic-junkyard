@@ -4,10 +4,9 @@ use bevy::prelude::{
 };
 use leafwing_input_manager::{orientation::Direction, prelude::*, Actionlike};
 
-use crate::scenes::{
-    game::{MovementState, Planet},
+use crate::app::{
+    game::{game_state_machine::GameState, MovementState, Planet},
     player_input::{Focus, Player},
-    GameState,
 };
 
 pub struct InputPlugin;
@@ -16,8 +15,8 @@ impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<PlanetChangeEvent>()
             .add_plugin(InputManagerPlugin::<PlanetAction>::default())
-            .add_system(setup.in_schedule(OnEnter(GameState::Prepare)))
-            .add_system(change_planets.run_if(in_state(GameState::Prepare)));
+            .add_system(setup.in_schedule(OnEnter(GameState::Preparing)))
+            .add_system(change_planets.run_if(in_state(GameState::Preparing)));
     }
 }
 

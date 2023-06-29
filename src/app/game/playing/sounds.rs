@@ -1,9 +1,8 @@
 use std::time::Duration;
 
 use bevy::{prelude::*, time::Stopwatch};
-use bevy_asset_loader::prelude::LoadingStateAppExt;
 
-use crate::{assets::sounds::SoundCollection, scenes::GameState};
+use crate::{app::AppState, assets::sounds::SoundCollection};
 
 use super::JunkCollision;
 
@@ -11,9 +10,8 @@ pub struct SoundsPlugin;
 
 impl Plugin for SoundsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_collection_to_loading_state::<_, SoundCollection>(GameState::AssetLoading)
-            .insert_resource(SoundCollisionStopWatch(Stopwatch::new()))
-            .add_systems((junk_collisions,).distributive_run_if(in_state(GameState::Playing)));
+        app.insert_resource(SoundCollisionStopWatch(Stopwatch::new()))
+            .add_systems((junk_collisions,).distributive_run_if(in_state(AppState::InGameLevel)));
     }
 }
 
