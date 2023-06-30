@@ -1,15 +1,13 @@
 use bevy::prelude::*;
-use bevy_asset_loader::prelude::LoadingStateAppExt;
 
-use crate::{assets::music::MusicCollection, GameState};
+use crate::{app::game::game_state_machine::GameState, assets::music::MusicCollection};
 
 pub struct MusicPlugin;
 
 impl Plugin for MusicPlugin {
     fn build(&self, app: &mut App) {
-        app.add_collection_to_loading_state::<_, MusicCollection>(GameState::AssetLoading)
-            .add_systems((setup,).in_schedule(OnEnter(GameState::Prepare)))
-            .add_systems((teardown,).in_schedule(OnExit(GameState::Prepare)));
+        app.add_system(setup.in_schedule(OnEnter(GameState::Preparing)))
+            .add_system(teardown.in_schedule(OnExit(GameState::Preparing)));
     }
 }
 
