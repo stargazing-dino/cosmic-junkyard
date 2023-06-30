@@ -66,7 +66,6 @@ fn update_gravity(
         }
 
         // Apply the total gravitational force from all planets to the body
-        // external_force.0 = total_force;
         external_force.0 = total_force;
     }
 }

@@ -7,6 +7,7 @@ use bevy::{
     window::PrimaryWindow,
 };
 use bevy_asset_loader::prelude::*;
+use bevy_mod_picking::{prelude::RaycastPickCamera, DefaultPickingPlugins};
 use bevy_xpbd_3d::{
     prelude::{
         CoefficientCombine, Collider, ColliderMassProperties, ExternalForce, Friction, Inertia,
@@ -28,8 +29,6 @@ use self::{
     prepare::PreparePlugin,
 };
 
-use super::app_state_machine::AppState;
-
 mod game_state_machine;
 mod playing;
 mod prepare;
@@ -44,6 +43,7 @@ impl Plugin for GamePlugin {
             )
             .add_collection_to_loading_state::<_, PlanetCollection>(GameState::AssetLoading)
             .add_plugins(PhysicsPlugins)
+            .add_plugins(DefaultPickingPlugins)
             .insert_resource(Gravity::ZERO)
             .insert_resource(Bounds::default())
             .insert_resource(AmbientLight {
@@ -175,6 +175,7 @@ fn setup_graphics(mut commands: Commands) {
             ..default()
         },
         BloomSettings::default(),
+        RaycastPickCamera::default(),
     ));
 }
 
