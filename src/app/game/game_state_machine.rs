@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::PreviousState;
+use crate::{app::app_state_machine::AppState, PreviousState};
 
 pub struct GameStateMachinePlugin;
 
@@ -9,13 +9,36 @@ impl Plugin for GameStateMachinePlugin {
         app.add_state::<GameState>()
             .add_event::<GameTransitionEvent>()
             .init_resource::<PreviousState<GameState>>()
-            .add_system(apply_transition);
+            .add_system(in_game_transition)
+            .add_system(apply_transition.run_if(in_state(AppState::InGameLevel)));
+    }
+}
+
+fn in_game_transition(
+    current_state: Res<State<AppState>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if current_state.is_changed() {
+        if current_state.0 == AppState::InGameLevel {
+            next_state.set(GameState::AssetLoading);
+        } else {
+            next_state.set(GameState::None);
+        }
     }
 }
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
 pub enum GameState {
+    // We need this silliness because otherwise we'd immediately be in the AssetLoading
+    // state which, after loading, would move us to the preparing state.
+    // This would all be running in the background.
     #[default]
+    None,
+
+    // TODO: I'm curious if this should instead go on the AppState? So I can
+    // keep this game state game specific naw mean?
+    AssetLoading,
+
     Preparing,
 
     Playing,
@@ -46,6 +69,7 @@ fn apply_transition(
 ) {
     for transition_event in transition_event_reader.iter() {
         let next_queued = match (current_state.0.clone(), transition_event) {
+            (GameState::Preparing, GameTransitionEvent::Play) => GameState::Playing,
             (GameState::Playing, GameTransitionEvent::Pause) => GameState::Paused,
             (GameState::Paused, GameTransitionEvent::Unpause) => GameState::Playing,
             (GameState::Playing, GameTransitionEvent::Complete) => GameState::Completed,

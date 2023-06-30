@@ -5,7 +5,7 @@ use bevy_asset_loader::prelude::{LoadingState, LoadingStateAppExt};
 use crate::assets::{music::MusicCollection, sounds::SoundCollection};
 
 use self::{
-    app_state_machine::{AppState, AppStateMachinePlugin},
+    app_state_machine::{AppState, AppStateMachinePlugin, AppTransitionEvent},
     game::GamePlugin,
     level_selection::LevelSelectionPlugin,
     main_menu::MainMenuPlugin,
@@ -26,6 +26,7 @@ pub struct AppPlugin;
 impl Plugin for AppPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(AppStateMachinePlugin)
+            .add_system(back_button)
             .add_loading_state(
                 LoadingState::new(AppState::AssetLoading).continue_to_state(AppState::MainMenu),
             )
@@ -36,5 +37,25 @@ impl Plugin for AppPlugin {
             .add_plugin(GamePlugin)
             .add_plugin(LevelSelectionPlugin)
             .add_plugin(SettingsDialogPlugin);
+    }
+}
+
+#[derive(Component)]
+pub struct BackButton;
+
+fn back_button(
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<Button>, With<BackButton>),
+    >,
+    mut transition_writer: EventWriter<AppTransitionEvent>,
+) {
+    for interaction in &mut interaction_query {
+        // check if interaction is clicked
+        if *interaction != Interaction::Clicked {
+            continue;
+        };
+
+        transition_writer.send(AppTransitionEvent::GoBack);
     }
 }

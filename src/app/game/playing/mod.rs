@@ -1,8 +1,6 @@
 use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
 
-use crate::app::AppState;
-
 use self::sounds::SoundsPlugin;
 
 use super::{game_state_machine::GameState, Junk, Planet};

@@ -4,7 +4,7 @@ use strum_macros::EnumIter;
 
 use crate::{
     utility::{button_interactions, despawn_components},
-    TEXT_COLOR,
+    NORMAL_BUTTON, TEXT_COLOR,
 };
 
 use super::{app_state_machine::AppTransitionEvent, AppState};
@@ -51,10 +51,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     let button_style = Style {
         size: Size {
-            width: Val::Px(200.0),
+            width: Val::Px(240.0),
             height: Val::Px(65.0),
         },
-        margin: UiRect::all(Val::Px(20.0)),
+        margin: UiRect::all(Val::Px(16.0)),
         justify_content: JustifyContent::Center,
         align_items: AlignItems::Center,
         ..default()
@@ -63,14 +63,14 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let button_text_style = TextStyle {
         font_size: 40.0,
         color: TEXT_COLOR,
-        ..default()
+        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
     };
 
     commands
         .spawn((
             NodeBundle {
                 style: Style {
-                    margin: UiRect::all(Val::Px(24.)),
+                    padding: UiRect::all(Val::Px(24.)),
                     flex_direction: FlexDirection::Row,
                     size: Size::all(Val::Percent(100.0)),
                     ..default()
@@ -152,6 +152,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 flex_grow: 1.0,
                                 flex_direction: FlexDirection::Column,
                                 align_items: AlignItems::Center,
+                                justify_content: JustifyContent::FlexEnd,
                                 ..default()
                             },
                             background_color: Color::CRIMSON.into(),
@@ -163,7 +164,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                     .spawn((
                                         ButtonBundle {
                                             style: button_style.clone(),
-                                            background_color: Color::WHITE.into(),
+                                            background_color: NORMAL_BUTTON.into(),
                                             ..default()
                                         },
                                         action,

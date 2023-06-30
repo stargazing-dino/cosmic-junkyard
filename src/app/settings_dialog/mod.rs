@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::utility::despawn_components;
+use crate::{utility::despawn_components, NORMAL_BUTTON};
 
-use super::AppState;
+use super::{AppState, BackButton};
 
 pub struct SettingsDialogPlugin;
 
@@ -26,7 +26,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .spawn((
             NodeBundle {
                 style: Style {
-                    margin: UiRect::all(Val::Px(24.)),
+                    padding: UiRect::all(Val::Px(24.)),
                     flex_direction: FlexDirection::Column,
                     size: Size::all(Val::Percent(100.0)),
                     ..default()
@@ -72,15 +72,37 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             ));
                         });
 
-                    // TODO: back button
                     parent.spawn(NodeBundle {
                         style: Style {
                             flex_grow: 1.0,
                             ..default()
                         },
-                        background_color: Color::YELLOW.into(),
                         ..default()
                     });
+
+                    parent
+                        .spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    size: Size::new(Val::Px(150.0), Val::Px(65.0)),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            BackButton,
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn(TextBundle::from_section(
+                                "Back",
+                                TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 24.0,
+                                    color: Color::rgb(0.0, 0.0, 0.0),
+                                },
+                            ));
+                        });
                 });
 
             parent

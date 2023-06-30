@@ -1,10 +1,6 @@
 use bevy::prelude::*;
-use bevy_asset_loader::prelude::LoadingStateAppExt;
 
-use crate::{
-    app::{game::game_state_machine::GameState, AppState},
-    assets::music::MusicCollection,
-};
+use crate::{app::game::game_state_machine::GameState, assets::music::MusicCollection};
 
 pub struct MusicPlugin;
 
