@@ -59,8 +59,8 @@ fn setup(
                     .spawn((
                         ButtonBundle {
                             style: Style {
-                                size: Size::new(Val::Px(150.0), Val::Px(65.0)),
-                                border: UiRect::all(Val::Px(5.0)),
+                                size: Size::new(Val::Px(160.0), Val::Px(64.0)),
+                                margin: UiRect::all(Val::Px(16.0)),
                                 justify_content: JustifyContent::Center,
                                 align_items: AlignItems::Center,
                                 ..default()

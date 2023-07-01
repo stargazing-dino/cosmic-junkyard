@@ -3,8 +3,8 @@ use bevy::prelude::*;
 use bevy_asset_loader::prelude::{LoadingState, LoadingStateAppExt};
 
 use crate::assets::{
-    backgrounds::BackgroundCollection, fonts::FontCollection, music::MusicCollection,
-    sounds::SoundCollection,
+    backgrounds::BackgroundCollection, fonts::FontCollection, images::ImageCollection,
+    music::MusicCollection, sounds::SoundCollection,
 };
 
 use self::{
@@ -36,6 +36,7 @@ impl Plugin for AppPlugin {
             .add_collection_to_loading_state::<_, MusicCollection>(AppState::AssetLoading)
             .add_collection_to_loading_state::<_, SoundCollection>(AppState::AssetLoading)
             .add_collection_to_loading_state::<_, BackgroundCollection>(AppState::AssetLoading)
+            .add_collection_to_loading_state::<_, ImageCollection>(AppState::AssetLoading)
             .add_collection_to_loading_state::<_, FontCollection>(AppState::AssetLoading)
             .add_plugin(PlayerInputPlugin)
             .add_plugin(MainMenuPlugin)

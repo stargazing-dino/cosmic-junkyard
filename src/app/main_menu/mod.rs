@@ -3,7 +3,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 use crate::{
-    assets::{backgrounds::BackgroundCollection, fonts::FontCollection},
+    assets::{backgrounds::BackgroundCollection, fonts::FontCollection, images::ImageCollection},
     utility::{button_interactions, despawn_components},
     NORMAL_BUTTON, TEXT_COLOR,
 };
@@ -50,14 +50,15 @@ impl MenuButtonAction {
 fn setup(
     mut commands: Commands,
     background_collection: Res<BackgroundCollection>,
+    image_collection: Res<ImageCollection>,
     font_collection: Res<FontCollection>,
 ) {
     commands.spawn((Camera2dBundle::default(), MainMenuMarker));
 
     let button_style = Style {
         size: Size {
-            width: Val::Px(240.0),
-            height: Val::Px(65.0),
+            width: Val::Px(260.0),
+            height: Val::Px(64.0),
         },
         margin: UiRect::all(Val::Px(16.0)),
         justify_content: JustifyContent::Center,
@@ -100,7 +101,7 @@ fn setup(
                     parent
                         .spawn(NodeBundle {
                             style: Style {
-                                flex_grow: 1.0,
+                                flex_shrink: 1.0,
                                 ..default()
                             },
                             ..default()
@@ -124,14 +125,22 @@ fn setup(
                         });
 
                     // TODO: Picture
-                    parent.spawn(NodeBundle {
-                        style: Style {
-                            flex_grow: 1.0,
+                    parent.spawn((
+                        NodeBundle {
+                            style: Style {
+                                flex_grow: 1.0,
+                                margin: UiRect {
+                                    top: Val::Px(64.0),
+                                    right: Val::Px(64.0),
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            background_color: Color::WHITE.into(),
                             ..default()
                         },
-                        background_color: Color::YELLOW.into(),
-                        ..default()
-                    });
+                        UiImage::new(image_collection.main_menu_aim.clone()),
+                    ));
                 });
 
             parent
@@ -144,25 +153,32 @@ fn setup(
                     ..default()
                 })
                 .with_children(|parent| {
-                    parent.spawn(NodeBundle {
-                        style: Style {
-                            flex_grow: 1.0,
+                    parent.spawn((
+                        NodeBundle {
+                            style: Style {
+                                flex_grow: 1.0,
+                                margin: UiRect {
+                                    bottom: Val::Px(64.0),
+                                    left: Val::Px(64.0),
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            background_color: Color::WHITE.into(),
                             ..default()
                         },
-                        background_color: Color::PINK.into(),
-                        ..default()
-                    });
+                        UiImage::new(image_collection.target.clone()),
+                    ));
 
                     parent
                         .spawn(NodeBundle {
                             style: Style {
-                                flex_grow: 1.0,
+                                flex_shrink: 1.0,
                                 flex_direction: FlexDirection::Column,
                                 align_items: AlignItems::Center,
                                 justify_content: JustifyContent::FlexEnd,
                                 ..default()
                             },
-                            background_color: Color::CRIMSON.into(),
                             ..default()
                         })
                         .with_children(|parent| {
