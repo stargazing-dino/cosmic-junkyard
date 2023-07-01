@@ -64,13 +64,13 @@ fn apply_transition(
             // Settings Transitions
 
             // Level Selection Transitions
-            (AppState::LevelSelection, AppTransitionEvent::SelectLevel(level)) => {
+            (AppState::LevelSelection, AppTransitionEvent::SelectLevel(_level)) => {
                 // TODO: Pass through the level selected
                 AppState::InGameLevel
             }
 
             // In Game Transitions
-            (AppState::InGameLevel, AppTransitionEvent::NextLevel(level)) => {
+            (AppState::InGameLevel, AppTransitionEvent::NextLevel(_level)) => {
                 // TODO: Pass through the level selected
                 AppState::InGameLevel
             }

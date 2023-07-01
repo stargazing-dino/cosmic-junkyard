@@ -5,8 +5,6 @@ use self::sounds::SoundsPlugin;
 
 use super::{game_state_machine::GameState, Junk, Planet};
 
-mod input;
-mod music;
 mod sounds;
 
 pub struct PlayingPlugin;
