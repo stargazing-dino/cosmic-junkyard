@@ -3,6 +3,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 use crate::{
+    assets::backgrounds::BackgroundCollection,
     utility::{button_interactions, despawn_components},
     NORMAL_BUTTON, TEXT_COLOR,
 };
@@ -46,7 +47,11 @@ impl MenuButtonAction {
     }
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    background_collection: Res<BackgroundCollection>,
+) {
     commands.spawn((Camera2dBundle::default(), MainMenuMarker));
 
     let button_style = Style {
@@ -75,9 +80,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     size: Size::all(Val::Percent(100.0)),
                     ..default()
                 },
+                background_color: Color::WHITE.into(),
                 ..default()
             },
             MainMenuMarker,
+            UiImage::new(background_collection.blue_nebula_1.clone()),
         ))
         .with_children(|parent| {
             parent

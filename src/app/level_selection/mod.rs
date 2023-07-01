@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
+    assets::backgrounds::BackgroundCollection,
     utility::{button_interactions, despawn_components},
     NORMAL_BUTTON,
 };
@@ -29,7 +30,11 @@ pub struct LevelSelectionMarker;
 #[derive(Component)]
 pub struct SelectLevelButton(usize);
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    background_collection: Res<BackgroundCollection>,
+) {
     commands.spawn((Camera2dBundle::default(), LevelSelectionMarker));
 
     commands
@@ -42,9 +47,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     flex_direction: FlexDirection::Column,
                     ..default()
                 },
+                background_color: Color::WHITE.into(),
                 ..default()
             },
             LevelSelectionMarker,
+            UiImage::new(background_collection.green_nebula_1.clone()),
         ))
         .with_children(|parent| {
             LEVELS.into_iter().enumerate().for_each(|(index, _)| {
