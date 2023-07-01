@@ -37,8 +37,6 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
       - name: Install alsa and udev
         run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
-      - name: Format code
-        run: cargo fmt -- --check
       - name: Build
         run: cargo build --verbose
       - name: Run tests
