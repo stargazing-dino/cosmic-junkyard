@@ -2,7 +2,9 @@
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::{LoadingState, LoadingStateAppExt};
 
-use crate::assets::{music::MusicCollection, sounds::SoundCollection};
+use crate::assets::{
+    backgrounds::BackgroundCollection, music::MusicCollection, sounds::SoundCollection,
+};
 
 use self::{
     app_state_machine::{AppState, AppStateMachinePlugin, AppTransitionEvent},
@@ -32,6 +34,7 @@ impl Plugin for AppPlugin {
             )
             .add_collection_to_loading_state::<_, MusicCollection>(AppState::AssetLoading)
             .add_collection_to_loading_state::<_, SoundCollection>(AppState::AssetLoading)
+            .add_collection_to_loading_state::<_, BackgroundCollection>(AppState::AssetLoading)
             .add_plugin(PlayerInputPlugin)
             .add_plugin(MainMenuPlugin)
             .add_plugin(GamePlugin)

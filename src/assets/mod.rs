@@ -1,3 +1,4 @@
+pub mod backgrounds;
 pub mod characters;
 pub mod environment;
 pub mod items;

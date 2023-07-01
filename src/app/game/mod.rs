@@ -28,8 +28,6 @@ use self::{
     prepare::PreparePlugin,
 };
 
-use super::app_state_machine::AppState;
-
 mod game_state_machine;
 mod playing;
 mod prepare;
