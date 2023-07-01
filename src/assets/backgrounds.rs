@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use bevy::asset::AssetServer;
 use bevy::prelude::Image;
 use bevy::prelude::{Handle, Resource};
