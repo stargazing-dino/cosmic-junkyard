@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use crate::{app::app_state_machine::AppState, utility::despawn_components, NORMAL_BUTTON};
+use crate::{
+    app::app_state_machine::AppState, assets::fonts::FontCollection, utility::despawn_components,
+    NORMAL_BUTTON,
+};
 
 use self::{input::InputPlugin, music::MusicPlugin};
 
@@ -33,7 +36,7 @@ pub struct PreparingMarker;
 #[derive(Component)]
 pub struct StartLevelButton;
 
-fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup_ui(mut commands: Commands, font_collection: Res<FontCollection>) {
     commands
         .spawn((
             NodeBundle {
@@ -69,7 +72,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                     parent.spawn(TextBundle::from_section(
                         "Play",
                         TextStyle {
-                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font: font_collection.comfortaa_bold.clone(),
                             font_size: 40.0,
                             color: Color::rgb(0.9, 0.9, 0.9),
                         },

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    assets::backgrounds::BackgroundCollection,
+    assets::{backgrounds::BackgroundCollection, fonts::FontCollection},
     utility::{button_interactions, despawn_components},
     NORMAL_BUTTON,
 };
@@ -32,8 +32,8 @@ pub struct SelectLevelButton(usize);
 
 fn setup(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     background_collection: Res<BackgroundCollection>,
+    font_collection: Res<FontCollection>,
 ) {
     commands.spawn((Camera2dBundle::default(), LevelSelectionMarker));
 
@@ -74,7 +74,7 @@ fn setup(
                         parent.spawn(TextBundle::from_section(
                             format!("Level {}", index + 1),
                             TextStyle {
-                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                font: font_collection.comfortaa_bold.clone(),
                                 font_size: 40.0,
                                 color: Color::rgb(0.9, 0.9, 0.9),
                             },

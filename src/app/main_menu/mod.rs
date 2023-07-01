@@ -3,7 +3,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 use crate::{
-    assets::backgrounds::BackgroundCollection,
+    assets::{backgrounds::BackgroundCollection, fonts::FontCollection},
     utility::{button_interactions, despawn_components},
     NORMAL_BUTTON, TEXT_COLOR,
 };
@@ -49,8 +49,8 @@ impl MenuButtonAction {
 
 fn setup(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     background_collection: Res<BackgroundCollection>,
+    font_collection: Res<FontCollection>,
 ) {
     commands.spawn((Camera2dBundle::default(), MainMenuMarker));
 
@@ -68,7 +68,7 @@ fn setup(
     let button_text_style = TextStyle {
         font_size: 40.0,
         color: TEXT_COLOR,
-        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+        font: font_collection.comfortaa_bold.clone(),
     };
 
     commands
@@ -111,7 +111,7 @@ fn setup(
                                 TextBundle::from_section(
                                     "Cosmic\nJunkyard",
                                     TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font: font_collection.comfortaa_bold.clone(),
                                         font_size: 80.0,
                                         color: Color::WHITE,
                                     },

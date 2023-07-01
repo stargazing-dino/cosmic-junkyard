@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{utility::despawn_components, NORMAL_BUTTON};
+use crate::{assets::fonts::FontCollection, utility::despawn_components};
 
 use super::{AppState, BackButton};
 
@@ -19,7 +19,7 @@ impl Plugin for SettingsDialogPlugin {
 #[derive(Component)]
 pub struct SettingsDialogMarker;
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(mut commands: Commands, font_collection: Res<FontCollection>) {
     commands.spawn((Camera2dBundle::default(), SettingsDialogMarker));
 
     commands
@@ -60,7 +60,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 TextBundle::from_section(
                                     "Settings",
                                     TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font: font_collection.comfortaa_bold.clone(),
                                         font_size: 56.0,
                                         color: Color::WHITE,
                                     },
@@ -97,7 +97,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             parent.spawn(TextBundle::from_section(
                                 "Back",
                                 TextStyle {
-                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font: font_collection.comfortaa_bold.clone(),
                                     font_size: 24.0,
                                     color: Color::rgb(0.0, 0.0, 0.0),
                                 },
