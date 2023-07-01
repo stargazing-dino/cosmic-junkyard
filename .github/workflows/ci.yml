@@ -25,7 +25,7 @@ jobs:
         uses: actions-rust-lang/rustfmt@v1
       - name: Set up cargo cache
         uses: actions/cache@v3
-        continue-on-error: false
+        continue-on-error: true
         with:
           path: |
             ~/.cargo/bin/
@@ -35,8 +35,10 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
+      - name: Update System Packages
+        run: sudo apt-get update
       - name: Install alsa and udev
-        run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
+        run: sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
       - name: Build
         run: cargo build --verbose
       - name: Run tests
