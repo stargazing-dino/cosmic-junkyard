@@ -1,10 +1,17 @@
 use bevy::prelude::*;
+use bevy_mod_picking::{
+    prelude::{Drag, OnPointer, RaycastPickCamera, RaycastPickTarget},
+    DefaultPickingPlugins, PickableBundle,
+};
 
 use crate::{app::app_state_machine::AppState, utility::despawn_components, NORMAL_BUTTON};
 
 use self::{input::InputPlugin, music::MusicPlugin};
 
-use super::game_state_machine::{GameState, GameTransitionEvent};
+use super::{
+    game_state_machine::{GameState, GameTransitionEvent},
+    GameCamera, Planet,
+};
 
 mod input;
 mod music;
@@ -15,6 +22,7 @@ impl Plugin for PreparePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(MusicPlugin)
             .add_plugin(InputPlugin)
+            .add_plugins(DefaultPickingPlugins)
             .add_systems((setup_ui,).in_schedule(OnEnter(GameState::Preparing)))
             .add_systems(
                 (despawn_components::<StartLevelButton>,).in_schedule(OnExit(GameState::Preparing)),
@@ -32,6 +40,30 @@ pub struct PreparingMarker;
 
 #[derive(Component)]
 pub struct StartLevelButton;
+
+fn setup_picking(
+    mut commands: Commands,
+    planet_query: Query<Entity, With<Planet>>,
+    camera_query: Query<Entity, With<GameCamera>>,
+) {
+    for entity in &mut camera_query.iter() {
+        let Some(mut entity_commands) = commands.get_entity(entity) else {continue};
+
+        entity_commands.insert((RaycastPickCamera::default(),));
+    }
+
+    for entity in &mut planet_query.iter() {
+        let Some(mut entity_commands) = commands.get_entity(entity) else {continue};
+
+        entity_commands.insert((
+            PickableBundle::default(),
+            RaycastPickTarget::default(),
+            OnPointer::<Drag>::target_component_mut::<Transform>(|drag, transform| {
+                transform.translation += drag.delta.extend(0.0) // Make the square follow the mouse
+            }),
+        ));
+    }
+}
 
 fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
