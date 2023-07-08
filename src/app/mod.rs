@@ -31,7 +31,7 @@ impl Plugin for AppPlugin {
         app.add_plugin(AppStateMachinePlugin)
             .add_system(back_button)
             .add_loading_state(
-                LoadingState::new(AppState::AssetLoading).continue_to_state(AppState::MainMenu),
+                LoadingState::new(AppState::AssetLoading).continue_to_state(AppState::InGameLevel),
             )
             .add_collection_to_loading_state::<_, MusicCollection>(AppState::AssetLoading)
             .add_collection_to_loading_state::<_, SoundCollection>(AppState::AssetLoading)

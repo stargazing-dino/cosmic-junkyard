@@ -10,7 +10,7 @@ use bevy_asset_loader::prelude::*;
 use bevy_xpbd_3d::{
     prelude::{
         CoefficientCombine, Collider, ColliderMassProperties, ExternalForce, Friction, Inertia,
-        Mass, PhysicsPlugins, Position, RigidBody,
+        Mass, PhysicsPlugins, Position, RigidBody, Sensor,
     },
     resources::Gravity,
 };
@@ -24,11 +24,13 @@ use crate::{
 
 use self::{
     game_state_machine::{GameState, GameStateMachinePlugin},
+    gravity::PointGravity,
     playing::PlayingPlugin,
     prepare::PreparePlugin,
 };
 
 mod game_state_machine;
+mod gravity;
 mod playing;
 mod prepare;
 
@@ -201,28 +203,57 @@ fn setup_level_gen(
         // let y = rng.gen_range(-14..=14);
 
         let mass = rng.gen_range(10..=200);
+        let position_vector = Vec3::new(position.x, position.y, 0.0);
 
-        commands.spawn((
-            SceneBundle {
-                scene,
-                transform: Transform::from_xyz(0.0, 0.0, 0.0),
-                ..default()
-            },
-            collider,
-            ColliderMassProperties::ZERO,
-            PlanetBundle {
-                planet: Planet {
-                    planet_type: *planet_type,
-                    gravity_strength: 9.8,
-                    state: MovementState::Idle,
+        commands
+            .spawn((
+                SceneBundle {
+                    scene,
+                    transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                    ..default()
                 },
-                position: Position(Vec3::new(position.x, position.y, 0.0)),
-                rigid_body: RigidBody::Kinematic,
-                mass: Mass(mass as f32),
-                // mass: Mass(1.0),
-                friction: Friction::new(100.0).with_combine_rule(CoefficientCombine::Multiply),
-            },
-        ));
+                collider,
+                ColliderMassProperties::ZERO,
+                PlanetBundle {
+                    planet: Planet {
+                        planet_type: *planet_type,
+                        gravity_strength: 9.8,
+                        state: MovementState::Idle,
+                    },
+                    position: Position(position_vector),
+                    rigid_body: RigidBody::Kinematic,
+                    mass: Mass(mass as f32),
+                    // mass: Mass(1.0),
+                    friction: Friction::new(100.0).with_combine_rule(CoefficientCombine::Multiply),
+                },
+            ))
+            .with_children(|parent| {
+                let radius = 30.0;
+
+                parent.spawn((
+                    PbrBundle {
+                        mesh: meshes.add(
+                            shape::Circle {
+                                radius,
+                                vertices: 20,
+                            }
+                            .into(),
+                        ),
+                        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                        transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                        ..default()
+                    },
+                    PointGravity {
+                        center: position_vector,
+                        // TODO: This looks off bruh
+                        center_mass: mass as f32,
+                        gravity_strength: 9.8,
+                    },
+                    RigidBody::Kinematic,
+                    Collider::ball(radius),
+                    Sensor,
+                ));
+            });
     }
 
     let shape = shape::UVSphere {
