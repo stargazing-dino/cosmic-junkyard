@@ -14,7 +14,7 @@ use bevy_xpbd_3d::{
     },
     resources::Gravity,
 };
-use rand::{seq::SliceRandom, thread_rng, Rng};
+use rand::{seq::SliceRandom, thread_rng};
 use strum::IntoEnumIterator;
 
 use crate::{
@@ -24,7 +24,7 @@ use crate::{
 
 use self::{
     game_state_machine::{GameState, GameStateMachinePlugin},
-    gravity::PointGravity,
+    gravity::{GravitySource, PlanarGravity, PointGravity},
     playing::PlayingPlugin,
     prepare::PreparePlugin,
 };
@@ -87,8 +87,6 @@ pub struct Goal {}
 pub struct Planet {
     pub planet_type: PlanetType,
 
-    pub gravity_strength: f32,
-
     pub state: MovementState,
 }
 
@@ -113,6 +111,26 @@ pub struct PlanetBundle {
     pub mass: Mass,
 
     pub friction: Friction,
+
+    #[bundle]
+    pub scene: SceneBundle,
+
+    pub collider: Collider,
+
+    pub collider_mass_properties: ColliderMassProperties,
+}
+
+#[derive(Bundle)]
+pub struct GravitySourceBundle {
+    // TODO:
+    // pub gravity_source: Box<dyn GravitySource>,
+    pub position: Position,
+
+    pub rigid_body: RigidBody,
+
+    pub collider: Collider,
+
+    pub sensor: Sensor,
 }
 
 fn setup_graphics(mut commands: Commands) {
@@ -188,10 +206,10 @@ fn setup_level_gen(
 ) {
     let planet_types = PlanetType::iter().collect::<Vec<_>>();
     let mut rng = thread_rng();
-    let positions: [Vec2; 2] = [
+    let positions: [Vec2; 3] = [
         Vec2::new(0.0, 14.0),
-        Vec2::new(0.0, -14.0),
-        // Vec2::new(-20.0, 14.0),
+        Vec2::new(4.0, -14.0),
+        Vec2::new(-20.0, 0.0),
     ];
 
     for position in positions.iter() {
@@ -202,56 +220,63 @@ fn setup_level_gen(
         // let x = rng.gen_range(-20..=20);
         // let y = rng.gen_range(-14..=14);
 
-        let mass = rng.gen_range(10..=200);
+        let mass = 150.0;
+        // let mass = rng.gen_range(10..=200);
         let position_vector = Vec3::new(position.x, position.y, 0.0);
 
         commands
-            .spawn((
-                SceneBundle {
+            .spawn(PlanetBundle {
+                planet: Planet {
+                    planet_type: *planet_type,
+                    state: MovementState::Idle,
+                },
+                position: Position(position_vector),
+                rigid_body: RigidBody::Kinematic,
+                mass: Mass(mass as f32),
+                friction: Friction::new(0.6).with_combine_rule(CoefficientCombine::Multiply),
+                scene: SceneBundle {
                     scene,
-                    transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                    transform: Transform::from_translation(position_vector),
                     ..default()
                 },
                 collider,
-                ColliderMassProperties::ZERO,
-                PlanetBundle {
-                    planet: Planet {
-                        planet_type: *planet_type,
-                        gravity_strength: 9.8,
-                        state: MovementState::Idle,
-                    },
-                    position: Position(position_vector),
-                    rigid_body: RigidBody::Kinematic,
-                    mass: Mass(mass as f32),
-                    // mass: Mass(1.0),
-                    friction: Friction::new(100.0).with_combine_rule(CoefficientCombine::Multiply),
-                },
-            ))
+                collider_mass_properties: ColliderMassProperties::ZERO,
+            })
             .with_children(|parent| {
-                let radius = 30.0;
+                let radius = 24.0;
 
                 parent.spawn((
-                    PbrBundle {
-                        mesh: meshes.add(
-                            shape::Circle {
-                                radius,
-                                vertices: 20,
-                            }
-                            .into(),
-                        ),
-                        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-                        transform: Transform::from_xyz(0.0, 0.0, 0.0),
-                        ..default()
-                    },
+                    // TODO: Gizmo
                     PointGravity {
-                        center: position_vector,
                         // TODO: This looks off bruh
                         center_mass: mass as f32,
                         gravity_strength: 9.8,
                     },
-                    RigidBody::Kinematic,
-                    Collider::ball(radius),
-                    Sensor,
+                    // PlanarGravity {
+                    //     gravity_strength: 9.8,
+                    //     normal: -Vec3::X,
+                    // },
+                    PbrBundle {
+                        mesh: meshes.add(
+                            Mesh::try_from(shape::Circle {
+                                radius,
+                                ..default()
+                            })
+                            .unwrap(),
+                        ),
+                        material: materials.add(StandardMaterial {
+                            base_color: Color::rgba(0.2, 0.2, 0.6, 0.2),
+                            alpha_mode: AlphaMode::Blend,
+                            ..default()
+                        }),
+                        ..default()
+                    },
+                    GravitySourceBundle {
+                        position: Position(position_vector),
+                        rigid_body: RigidBody::Kinematic,
+                        collider: Collider::ball(radius),
+                        sensor: Sensor,
+                    },
                 ));
             });
     }
