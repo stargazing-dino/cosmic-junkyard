@@ -28,8 +28,8 @@ pub struct AppPlugin;
 
 impl Plugin for AppPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(AppStateMachinePlugin)
-            .add_system(back_button)
+        app.add_plugins(AppStateMachinePlugin)
+            .add_systems(Update, back_button)
             .add_loading_state(
                 LoadingState::new(AppState::AssetLoading).continue_to_state(AppState::InGameLevel),
             )
@@ -38,11 +38,13 @@ impl Plugin for AppPlugin {
             .add_collection_to_loading_state::<_, BackgroundCollection>(AppState::AssetLoading)
             .add_collection_to_loading_state::<_, ImageCollection>(AppState::AssetLoading)
             .add_collection_to_loading_state::<_, FontCollection>(AppState::AssetLoading)
-            .add_plugin(PlayerInputPlugin)
-            .add_plugin(MainMenuPlugin)
-            .add_plugin(GamePlugin)
-            .add_plugin(LevelSelectionPlugin)
-            .add_plugin(SettingsDialogPlugin);
+            .add_plugins((
+                PlayerInputPlugin,
+                MainMenuPlugin,
+                GamePlugin,
+                LevelSelectionPlugin,
+                SettingsDialogPlugin,
+            ));
     }
 }
 
@@ -58,7 +60,7 @@ fn back_button(
 ) {
     for interaction in &mut interaction_query {
         // check if interaction is clicked
-        if *interaction != Interaction::Clicked {
+        if *interaction != Interaction::Pressed {
             continue;
         };
 

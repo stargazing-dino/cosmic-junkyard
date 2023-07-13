@@ -11,7 +11,10 @@ impl Plugin for GravityPlugin {
 
         app.register_component_as::<dyn GravitySource, PointGravity>()
             .register_component_as::<dyn GravitySource, PlanarGravity>()
-            .add_systems((update_gravity,).distributive_run_if(in_state(GameState::Playing)));
+            .add_systems(
+                Update,
+                (update_gravity,).run_if(in_state(GameState::Playing)),
+            );
     }
 }
 
@@ -83,8 +86,8 @@ fn update_gravity(
     >,
     gravity_source_query: Query<(&dyn GravitySource, &Position), With<Sensor>>,
 ) {
-    for (body, mut external_force, colliding_entities) in rigid_body_query.iter_mut() {
-        if !body.rb.is_dynamic() {
+    for (rb_item, mut external_force, colliding_entities) in rigid_body_query.iter_mut() {
+        if !rb_item.rb.is_dynamic() {
             continue;
         }
 
@@ -93,13 +96,17 @@ fn update_gravity(
         for colliding_entity in colliding_entities.0.iter() {
             if let Ok((gravity_sources, position)) = gravity_source_query.get(*colliding_entity) {
                 for gravity_source in gravity_sources {
-                    let force =
-                        gravity_source.calculate_force(position.0, body.position.0, body.mass.0);
+                    let force = gravity_source.calculate_force(
+                        position.0,
+                        rb_item.position.0,
+                        rb_item.mass.0,
+                    );
+
                     total_force += force;
                 }
             }
         }
 
-        external_force.0 = total_force;
+        external_force.set_force(total_force);
     }
 }

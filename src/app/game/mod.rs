@@ -24,7 +24,7 @@ use crate::{
 
 use self::{
     game_state_machine::{GameState, GameStateMachinePlugin},
-    gravity::{GravitySource, PlanarGravity, PointGravity},
+    gravity::PointGravity,
     playing::PlayingPlugin,
     prepare::PreparePlugin,
 };
@@ -38,22 +38,22 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(GameStateMachinePlugin)
+        app.add_plugins(GameStateMachinePlugin)
             .add_loading_state(
                 LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::Preparing),
             )
             .add_collection_to_loading_state::<_, PlanetCollection>(GameState::AssetLoading)
-            .add_plugins(PhysicsPlugins)
+            .add_plugins(PhysicsPlugins::default())
             .insert_resource(Gravity::ZERO)
             .insert_resource(Bounds::default())
             .insert_resource(AmbientLight {
                 color: Color::WHITE,
                 brightness: 1.0 / 5.0f32,
             })
-            .add_plugin(PreparePlugin)
-            .add_plugin(PlayingPlugin)
+            .add_plugins((PreparePlugin, PlayingPlugin))
             .add_systems(
-                (setup_graphics, setup_level_gen).in_schedule(OnEnter(GameState::Preparing)),
+                OnEnter(GameState::Preparing),
+                (setup_graphics, setup_level_gen),
             );
         // .add_system(
         //     resume_play.run_if(
@@ -112,7 +112,6 @@ pub struct PlanetBundle {
 
     pub friction: Friction,
 
-    #[bundle]
     pub scene: SceneBundle,
 
     pub collider: Collider,
@@ -206,10 +205,10 @@ fn setup_level_gen(
 ) {
     let planet_types = PlanetType::iter().collect::<Vec<_>>();
     let mut rng = thread_rng();
-    let positions: [Vec2; 3] = [
+    let positions: [Vec2; 2] = [
         Vec2::new(0.0, 14.0),
-        Vec2::new(4.0, -14.0),
-        Vec2::new(-20.0, 0.0),
+        Vec2::new(0.0, -14.0),
+        // Vec2::new(-20.0, 0.0),
     ];
 
     for position in positions.iter() {
@@ -239,14 +238,13 @@ fn setup_level_gen(
                     transform: Transform::from_translation(position_vector),
                     ..default()
                 },
-                collider,
                 collider_mass_properties: ColliderMassProperties::ZERO,
+                collider,
             })
             .with_children(|parent| {
                 let radius = 24.0;
 
                 parent.spawn((
-                    // TODO: Gizmo
                     PointGravity {
                         // TODO: This looks off bruh
                         center_mass: mass as f32,
@@ -254,23 +252,8 @@ fn setup_level_gen(
                     },
                     // PlanarGravity {
                     //     gravity_strength: 9.8,
-                    //     normal: -Vec3::X,
+                    //     normal: Vec3::X,
                     // },
-                    PbrBundle {
-                        mesh: meshes.add(
-                            Mesh::try_from(shape::Circle {
-                                radius,
-                                ..default()
-                            })
-                            .unwrap(),
-                        ),
-                        material: materials.add(StandardMaterial {
-                            base_color: Color::rgba(0.2, 0.2, 0.6, 0.2),
-                            alpha_mode: AlphaMode::Blend,
-                            ..default()
-                        }),
-                        ..default()
-                    },
                     GravitySourceBundle {
                         position: Position(position_vector),
                         rigid_body: RigidBody::Kinematic,

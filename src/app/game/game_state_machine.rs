@@ -9,8 +9,11 @@ impl Plugin for GameStateMachinePlugin {
         app.add_state::<GameState>()
             .add_event::<GameTransitionEvent>()
             .init_resource::<PreviousState<GameState>>()
-            .add_system(in_game_transition)
-            .add_system(apply_transition.run_if(in_state(AppState::InGameLevel)));
+            .add_systems(Update, in_game_transition)
+            .add_systems(
+                Update,
+                apply_transition.run_if(in_state(AppState::InGameLevel)),
+            );
     }
 }
 
@@ -19,7 +22,7 @@ fn in_game_transition(
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     if current_state.is_changed() {
-        if current_state.0 == AppState::InGameLevel {
+        if *current_state == AppState::InGameLevel {
             next_state.set(GameState::AssetLoading);
         } else {
             next_state.set(GameState::None);
@@ -52,6 +55,7 @@ pub enum GameState {
     Failed,
 }
 
+#[derive(Event)]
 pub enum GameTransitionEvent {
     Play,
     Prepare,
@@ -68,7 +72,7 @@ fn apply_transition(
     mut transition_event_reader: EventReader<GameTransitionEvent>,
 ) {
     for transition_event in transition_event_reader.iter() {
-        let next_queued = match (current_state.0.clone(), transition_event) {
+        let next_queued = match (current_state.clone(), transition_event) {
             (GameState::Preparing, GameTransitionEvent::Play) => GameState::Playing,
             (GameState::Playing, GameTransitionEvent::Pause) => GameState::Paused,
             (GameState::Paused, GameTransitionEvent::Unpause) => GameState::Playing,
@@ -77,7 +81,7 @@ fn apply_transition(
             _ => panic!("Invalid state transition"),
         };
 
-        previous_state.0 = Some(current_state.0.clone());
+        previous_state.0 = Some(current_state.clone());
         next_state.0 = Some(next_queued);
     }
 }

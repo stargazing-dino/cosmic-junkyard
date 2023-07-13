@@ -1,5 +1,7 @@
+use std::time::Duration;
+
 use app::AppPlugin;
-use bevy::prelude::*;
+use bevy::{asset::ChangeWatcher, prelude::*};
 
 mod app;
 mod assets;
@@ -35,10 +37,12 @@ fn main() {
                 .set(AssetPlugin {
                     // This tells the AssetServer to watch for changes to assets.
                     // It enables our scenes to automatically reload in game when we modify their files.
-                    watch_for_changes: true,
+                    watch_for_changes: Some(
+                        ChangeWatcher::with_delay(Duration::from_millis(50)).unwrap(),
+                    ),
                     ..default()
                 }),
         )
-        .add_plugin(AppPlugin)
+        .add_plugins(AppPlugin)
         .run();
 }

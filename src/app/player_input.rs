@@ -1,5 +1,6 @@
 // TODO: Replace this with https://github.com/nicopap/ui-navigation
 use bevy::prelude::*;
+use bevy::reflect::TypePath;
 use leafwing_input_manager::orientation::Direction;
 use leafwing_input_manager::prelude::*;
 
@@ -11,8 +12,8 @@ pub struct PlayerInputPlugin;
 
 impl Plugin for PlayerInputPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(InputManagerPlugin::<UiAction>::default())
-            .add_systems((setup_player,).in_schedule(OnEnter(AppState::InGameLevel)));
+        app.add_plugins(InputManagerPlugin::<UiAction>::default())
+            .add_systems(OnEnter(AppState::InGameLevel), (setup_player,));
     }
 }
 
@@ -59,7 +60,7 @@ pub struct PlayerBundle {
     pub ui_action_manager: InputManagerBundle<UiAction>,
 }
 
-#[derive(Actionlike, PartialEq, Clone, Copy, Debug)]
+#[derive(Actionlike, PartialEq, Clone, Copy, Debug, TypePath)]
 pub enum UiAction {
     Move(Direction),
 

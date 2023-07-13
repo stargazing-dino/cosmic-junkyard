@@ -12,14 +12,15 @@ pub struct LevelSelectionPlugin;
 
 impl Plugin for LevelSelectionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems((setup,).in_schedule(OnEnter(AppState::LevelSelection)))
+        app.add_systems(OnEnter(AppState::LevelSelection), setup)
             .add_systems(
+                Update,
                 (button_interactions, select_level_action)
-                    .distributive_run_if(in_state(AppState::LevelSelection)),
+                    .run_if(in_state(AppState::LevelSelection)),
             )
             .add_systems(
-                (despawn_components::<LevelSelectionMarker>,)
-                    .in_schedule(OnExit(AppState::LevelSelection)),
+                OnExit(AppState::LevelSelection),
+                despawn_components::<LevelSelectionMarker>,
             );
     }
 }
@@ -41,7 +42,8 @@ fn setup(
         .spawn((
             NodeBundle {
                 style: Style {
-                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
                     align_items: AlignItems::Center,
                     flex_direction: FlexDirection::Column,
                     ..default()
@@ -57,7 +59,8 @@ fn setup(
                 .spawn((
                     ButtonBundle {
                         style: Style {
-                            size: Size::new(Val::Px(160.0), Val::Px(64.0)),
+                            height: Val::Px(64.0),
+                            width: Val::Px(160.0),
                             margin: UiRect::all(Val::Px(16.0)),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
@@ -83,7 +86,8 @@ fn setup(
             parent
                 .spawn((NodeBundle {
                     style: Style {
-                        size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
                         align_items: AlignItems::Center,
                         flex_direction: FlexDirection::Column,
                         justify_content: JustifyContent::Center,
@@ -97,7 +101,8 @@ fn setup(
                             .spawn((
                                 ButtonBundle {
                                     style: Style {
-                                        size: Size::new(Val::Px(160.0), Val::Px(64.0)),
+                                        width: Val::Px(160.0),
+                                        height: Val::Px(64.0),
                                         margin: UiRect::all(Val::Px(16.0)),
                                         justify_content: JustifyContent::Center,
                                         align_items: AlignItems::Center,
@@ -133,7 +138,7 @@ fn select_level_action(
 ) {
     for (interaction, button) in &mut interaction_query {
         // check if interaction is clicked
-        if *interaction != Interaction::Clicked {
+        if *interaction != Interaction::Pressed {
             continue;
         };
 

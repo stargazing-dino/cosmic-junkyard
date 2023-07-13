@@ -1,6 +1,9 @@
-use bevy::prelude::{
-    default, in_state, App, Commands, Entity, EventWriter, GamepadButtonType, IntoSystemAppConfig,
-    IntoSystemConfig, KeyCode, OnEnter, Plugin, Query, Vec2, With,
+use bevy::{
+    prelude::{
+        default, in_state, App, Commands, Entity, Event, EventWriter, GamepadButtonType,
+        IntoSystemConfigs, KeyCode, OnEnter, Plugin, Query, Update, Vec2, With,
+    },
+    reflect::TypePath,
 };
 use leafwing_input_manager::{orientation::Direction, prelude::*, Actionlike};
 
@@ -14,9 +17,12 @@ pub struct InputPlugin;
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<PlanetChangeEvent>()
-            .add_plugin(InputManagerPlugin::<PlanetAction>::default())
-            .add_system(setup.in_schedule(OnEnter(GameState::Preparing)))
-            .add_system(change_planets.run_if(in_state(GameState::Preparing)));
+            .add_plugins(InputManagerPlugin::<PlanetAction>::default())
+            .add_systems(OnEnter(GameState::Preparing), setup)
+            .add_systems(
+                Update,
+                (change_planets,).run_if(in_state(GameState::Preparing)),
+            );
     }
 }
 
@@ -33,11 +39,24 @@ fn setup(mut commands: Commands) {
 //     }
 // }
 
-#[derive(Actionlike, PartialEq, Clone, Copy, Debug)]
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct MyDirection(Direction);
+
+impl TypePath for MyDirection {
+    fn type_path() -> &'static str {
+        "my_crate::my_module::MyType"
+    }
+    fn short_type_path() -> &'static str {
+        "MyType"
+    }
+}
+
+#[derive(Actionlike, Debug, Clone, PartialEq, TypePath)]
 pub enum PlanetAction {
     Size(f32),
 
-    Move(Direction),
+    // #[reflect(ignore)]
+    Move(MyDirection),
 }
 
 impl PlanetAction {
@@ -46,22 +65,35 @@ impl PlanetAction {
         let mut input_map = InputMap::default();
 
         // Movement
-        input_map.insert(KeyCode::Up, Move(Direction::NORTH));
-        input_map.insert(GamepadButtonType::DPadUp, Move(Direction::NORTH));
+        input_map.insert(KeyCode::Up, Move(MyDirection(Direction::NORTH)));
+        input_map.insert(
+            GamepadButtonType::DPadUp,
+            Move(MyDirection(Direction::NORTH)),
+        );
 
-        input_map.insert(KeyCode::Down, Move(Direction::SOUTH));
-        input_map.insert(GamepadButtonType::DPadDown, Move(Direction::SOUTH));
+        input_map.insert(KeyCode::Down, Move(MyDirection(Direction::SOUTH)));
+        input_map.insert(
+            GamepadButtonType::DPadDown,
+            Move(MyDirection(Direction::SOUTH)),
+        );
 
-        input_map.insert(KeyCode::Left, Move(Direction::WEST));
-        input_map.insert(GamepadButtonType::DPadLeft, Move(Direction::WEST));
+        input_map.insert(KeyCode::Left, Move(MyDirection(Direction::WEST)));
+        input_map.insert(
+            GamepadButtonType::DPadLeft,
+            Move(MyDirection(Direction::WEST)),
+        );
 
-        input_map.insert(KeyCode::Right, Move(Direction::EAST));
-        input_map.insert(GamepadButtonType::DPadRight, Move(Direction::EAST));
+        input_map.insert(KeyCode::Right, Move(MyDirection(Direction::EAST)));
+        input_map.insert(
+            GamepadButtonType::DPadRight,
+            Move(MyDirection(Direction::EAST)),
+        );
 
         input_map
     }
 }
 
+#[derive(Event)]
 pub struct PlanetChangeEvent {
     pub movement_state: MovementState,
 
@@ -92,7 +124,9 @@ fn change_planets(
             Direction::WEST,
         ]
         .iter()
-        .filter(|input_direction| action_state.pressed(PlanetAction::Move(**input_direction)))
+        .filter(|input_direction| {
+            action_state.pressed(PlanetAction::Move(MyDirection(**input_direction)))
+        })
         .for_each(|direction| intended_direction += direction.unit_vector());
 
         // Normalize the vector to prevent faster diagonal movement

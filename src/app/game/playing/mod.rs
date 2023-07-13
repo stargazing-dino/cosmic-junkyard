@@ -11,18 +11,18 @@ pub struct PlayingPlugin;
 
 impl Plugin for PlayingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(SoundsPlugin)
-            .add_plugin(GravityPlugin)
-            .add_event::<JunkCollision>()
-            .add_systems((resume_physics,).in_schedule(OnEnter(GameState::Paused)))
-            .add_systems((pause_physics,).in_schedule(OnExit(GameState::Playing)))
+        app.add_plugins((SoundsPlugin, GravityPlugin))
+            .add_event::<JunkCollisionEvent>()
+            .add_systems(OnEnter(GameState::Paused), resume_physics)
+            .add_systems(OnExit(GameState::Playing), pause_physics)
             .add_systems(
+                Update,
                 (
                     junk_collisions,
                     // constrain_to_bounds,
                     // update_player_animations,
                 )
-                    .distributive_run_if(in_state(GameState::Playing)),
+                    .run_if(in_state(GameState::Playing)),
             );
     }
 }
@@ -35,7 +35,8 @@ fn resume_physics(mut physics_loop: ResMut<PhysicsLoop>) {
     physics_loop.resume();
 }
 
-pub struct JunkCollision {
+#[derive(Event)]
+pub struct JunkCollisionEvent {
     pub normal: Vec3,
 
     pub penetration: f32,
@@ -46,7 +47,7 @@ pub struct JunkCollision {
 
 fn junk_collisions(
     mut collision_event_reader: EventReader<Collision>,
-    mut junk_collision_write: EventWriter<JunkCollision>,
+    mut junk_collision_write: EventWriter<JunkCollisionEvent>,
     planet_query: Query<Entity, With<Planet>>,
     junk_query: Query<Entity, With<Junk>>,
 ) {
@@ -60,7 +61,7 @@ fn junk_collisions(
         let contact_point = (contact.point1 + contact.point2) / 2.0;
 
         if (is_planet_entity1 && is_junk_entity2) || (is_junk_entity1 && is_planet_entity2) {
-            junk_collision_write.send(JunkCollision {
+            junk_collision_write.send(JunkCollisionEvent {
                 normal: contact.normal,
                 penetration: contact.penetration,
                 contact_point,

@@ -8,10 +8,10 @@ pub struct SettingsDialogPlugin;
 
 impl Plugin for SettingsDialogPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems((setup,).in_schedule(OnEnter(AppState::Settings)))
+        app.add_systems(OnEnter(AppState::Settings), setup)
             .add_systems(
-                (despawn_components::<SettingsDialogMarker>,)
-                    .in_schedule(OnExit(AppState::Settings)),
+                OnExit(AppState::Settings),
+                despawn_components::<SettingsDialogMarker>,
             );
     }
 }
@@ -28,7 +28,8 @@ fn setup(mut commands: Commands, font_collection: Res<FontCollection>) {
                 style: Style {
                     padding: UiRect::all(Val::Px(24.)),
                     flex_direction: FlexDirection::Column,
-                    size: Size::all(Val::Percent(100.0)),
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
                     ..default()
                 },
                 ..default()
@@ -84,7 +85,8 @@ fn setup(mut commands: Commands, font_collection: Res<FontCollection>) {
                         .spawn((
                             ButtonBundle {
                                 style: Style {
-                                    size: Size::new(Val::Px(150.0), Val::Px(65.0)),
+                                    width: Val::Px(150.0),
+                                    height: Val::Px(65.0),
                                     justify_content: JustifyContent::Center,
                                     align_items: AlignItems::Center,
                                     ..default()

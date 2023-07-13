@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{audio::Volume, prelude::*};
 
 use crate::{app::game::game_state_machine::GameState, assets::music::MusicCollection};
 
@@ -6,40 +6,37 @@ pub struct MusicPlugin;
 
 impl Plugin for MusicPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(setup.in_schedule(OnEnter(GameState::Preparing)))
-            .add_system(teardown.in_schedule(OnExit(GameState::Preparing)));
+        app.add_systems(OnEnter(GameState::Preparing), setup)
+            .add_systems(OnExit(GameState::Preparing), teardown);
     }
 }
 
-#[derive(Resource)]
-struct PrepareMusicController(Handle<AudioSink>);
+#[derive(Component)]
+struct PrepareMusic;
 
 fn setup(
     mut commands: Commands,
     music_collection: Res<MusicCollection>,
-    audio: Res<Audio>,
-    audio_sinks: Res<Assets<AudioSink>>,
+    // audio: Res<Audio>,
+    // audio_sinks: Res<Assets<AudioSink>>,
 ) {
     let weak_handle = music_collection.goodbye_sweet_alien.clone();
-    let strong_handle = audio_sinks.get_handle(&audio.play_with_settings(
-        weak_handle,
-        PlaybackSettings {
-            repeat: true,
-            ..default()
-        },
-    ));
 
-    commands.insert_resource(PrepareMusicController(strong_handle));
+    commands.spawn((
+        AudioBundle {
+            source: weak_handle,
+            settings: PlaybackSettings::LOOP.with_volume(Volume::new_relative(0.5)),
+        },
+        PrepareMusic,
+    ));
 }
 
 fn teardown(
     mut commands: Commands,
-    audio_sinks: Res<Assets<AudioSink>>,
-    prepare_music_controller: ResMut<PrepareMusicController>,
+    audio_sink_query: Query<(Entity, &AudioSink), With<PrepareMusic>>,
 ) {
-    if let Some(sink) = audio_sinks.get(&prepare_music_controller.0) {
+    if let Ok((entity, sink)) = audio_sink_query.get_single() {
         sink.stop();
+        commands.entity(entity).despawn_recursive();
     }
-
-    commands.remove_resource::<PrepareMusicController>()
 }

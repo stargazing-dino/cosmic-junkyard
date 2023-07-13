@@ -16,13 +16,14 @@ pub struct PreparePlugin;
 
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(MusicPlugin)
-            .add_plugin(InputPlugin)
-            .add_systems((setup_ui,).in_schedule(OnEnter(GameState::Preparing)))
+        app.add_plugins((MusicPlugin, InputPlugin))
+            .add_systems(OnEnter(GameState::Preparing), setup_ui)
             .add_systems(
-                (despawn_components::<StartLevelButton>,).in_schedule(OnExit(GameState::Preparing)),
+                OnExit(GameState::Preparing),
+                despawn_components::<StartLevelButton>,
             )
-            .add_system(
+            .add_systems(
+                Update,
                 start_play_button.run_if(
                     in_state(AppState::InGameLevel).and_then(in_state(GameState::Preparing)),
                 ),
@@ -42,7 +43,8 @@ fn setup_ui(mut commands: Commands, font_collection: Res<FontCollection>) {
             NodeBundle {
                 style: Style {
                     padding: UiRect::all(Val::Px(24.)),
-                    size: Size::all(Val::Percent(100.)),
+                    width: Val::Percent(100.),
+                    height: Val::Percent(100.),
                     align_items: AlignItems::End,
                     justify_content: JustifyContent::End,
                     flex_direction: FlexDirection::Row,
@@ -57,7 +59,8 @@ fn setup_ui(mut commands: Commands, font_collection: Res<FontCollection>) {
                 .spawn((
                     ButtonBundle {
                         style: Style {
-                            size: Size::new(Val::Px(150.0), Val::Px(65.0)),
+                            width: Val::Px(150.0),
+                            height: Val::Px(65.0),
                             border: UiRect::all(Val::Px(5.0)),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
@@ -90,7 +93,7 @@ fn start_play_button(
 ) {
     for interaction in &mut interaction_query {
         // check if interaction is clicked
-        if *interaction != Interaction::Clicked {
+        if *interaction != Interaction::Pressed {
             continue;
         };
 

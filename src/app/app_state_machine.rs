@@ -9,7 +9,7 @@ impl Plugin for AppStateMachinePlugin {
         app.add_state::<AppState>()
             .add_event::<AppTransitionEvent>()
             .init_resource::<PreviousState<AppState>>()
-            .add_system(apply_transition);
+            .add_systems(Update, apply_transition);
     }
 }
 
@@ -31,6 +31,7 @@ pub enum AppState {
     InGameLevel,
 }
 
+#[derive(Event)]
 pub enum AppTransitionEvent {
     Continue,
 
@@ -52,7 +53,7 @@ fn apply_transition(
     mut transition_event_reader: EventReader<AppTransitionEvent>,
 ) {
     for transition_event in transition_event_reader.iter() {
-        let next_queued = match (current_state.0.clone(), transition_event) {
+        let next_queued = match (current_state.clone(), transition_event) {
             // Main Menu Transitions
             (AppState::MainMenu, AppTransitionEvent::Continue) => {
                 // TODO: Get the last level played and pass it through
@@ -85,7 +86,7 @@ fn apply_transition(
             _ => panic!("Invalid state transition"),
         };
 
-        previous_state.0 = Some(current_state.0.clone());
+        previous_state.0 = Some(current_state.clone());
         next_state.0 = Some(next_queued);
     }
 }

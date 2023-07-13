@@ -14,14 +14,15 @@ pub struct MainMenuPlugin;
 
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems((setup,).in_schedule(OnEnter(AppState::MainMenu)))
+        app.add_systems(OnEnter(AppState::MainMenu), setup)
             .add_systems(
+                Update,
                 // TODO: Maybe this should be top level system?
-                (button_interactions, main_menu_actions)
-                    .distributive_run_if(in_state(AppState::MainMenu)),
+                (button_interactions, main_menu_actions).run_if(in_state(AppState::MainMenu)),
             )
             .add_systems(
-                (despawn_components::<MainMenuMarker>,).in_schedule(OnExit(AppState::MainMenu)),
+                OnExit(AppState::MainMenu),
+                despawn_components::<MainMenuMarker>,
             );
     }
 }
@@ -56,10 +57,8 @@ fn setup(
     commands.spawn((Camera2dBundle::default(), MainMenuMarker));
 
     let button_style = Style {
-        size: Size {
-            width: Val::Px(260.0),
-            height: Val::Px(64.0),
-        },
+        width: Val::Px(260.0),
+        height: Val::Px(64.0),
         margin: UiRect::all(Val::Px(16.0)),
         justify_content: JustifyContent::Center,
         align_items: AlignItems::Center,
@@ -78,7 +77,8 @@ fn setup(
                 style: Style {
                     padding: UiRect::all(Val::Px(24.)),
                     flex_direction: FlexDirection::Row,
-                    size: Size::all(Val::Percent(100.0)),
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
                     ..default()
                 },
                 background_color: Color::WHITE.into(),
@@ -213,7 +213,7 @@ fn main_menu_actions(
 ) {
     for (interaction, action) in &mut interaction_query {
         // check if interaction is clicked
-        if *interaction != Interaction::Clicked {
+        if *interaction != Interaction::Pressed {
             continue;
         };
 
