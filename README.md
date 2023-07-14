@@ -10,6 +10,8 @@ eh
 * Git lfs to install all the models
 * Rust (stable) to compile the project
 
+Models
+https://quaternius.com/packs/ultimatespacekit.html
 
 space backgrounds
 https://screamingbrainstudios.itch.io/seamless-space-backgrounds

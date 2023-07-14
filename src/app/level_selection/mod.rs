@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     assets::{backgrounds::BackgroundCollection, fonts::FontCollection},
-    utility::{button_interactions, despawn_components},
+    utility::{change_button_colors, despawn_components},
     NORMAL_BUTTON,
 };
 
@@ -15,7 +15,7 @@ impl Plugin for LevelSelectionPlugin {
         app.add_systems(OnEnter(AppState::LevelSelection), setup)
             .add_systems(
                 Update,
-                (button_interactions, select_level_action)
+                (change_button_colors, select_level_action)
                     .run_if(in_state(AppState::LevelSelection)),
             )
             .add_systems(

@@ -4,7 +4,7 @@ use strum_macros::EnumIter;
 
 use crate::{
     assets::{backgrounds::BackgroundCollection, fonts::FontCollection, images::ImageCollection},
-    utility::{button_interactions, despawn_components},
+    utility::{change_button_colors, despawn_components},
     NORMAL_BUTTON, TEXT_COLOR,
 };
 
@@ -18,7 +18,7 @@ impl Plugin for MainMenuPlugin {
             .add_systems(
                 Update,
                 // TODO: Maybe this should be top level system?
-                (button_interactions, main_menu_actions).run_if(in_state(AppState::MainMenu)),
+                (change_button_colors, main_menu_actions).run_if(in_state(AppState::MainMenu)),
             )
             .add_systems(
                 OnExit(AppState::MainMenu),

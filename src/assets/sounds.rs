@@ -4,218 +4,6 @@ use bevy::prelude::AudioSource;
 use bevy::prelude::{Handle, Resource};
 use bevy_asset_loader::prelude::*;
 
-// amazing_1.mp3
-// amazing_2.mp3
-// blackhole.mp3
-// boingmachine.mp3
-// bomb.mp3
-// bonus.mp3
-// build1.mp3
-// build2.mp3
-// build3.mp3
-// build4.mp3
-// build5.mp3
-// build6.mp3
-// build7.mp3
-// build8.mp3
-// build9.mp3
-// build10.mp3
-// build11.mp3
-// buildsp1.mp3
-// buildsp2.mp3
-// buildsp3.mp3
-// buildsp4.mp3
-// buildsp5.mp3
-// buildsp6.mp3
-// comfused.mp3
-// comfusedrobot.mp3
-// comfusedrobot2.mp3
-// comfusedrobot3.mp3
-// comfusedrobot4.mp3
-// comfusedrobot5.mp3
-// comfusedrobot6.mp3
-// congs.mp3
-// dangerous.mp3
-// dangerous_2.mp3
-// dangerous_3.mp3
-// dangerous_4.mp3
-// dangerous_5.mp3
-// dangerous_6.mp3
-// dangerous_7.mp3
-// dangerous_8.mp3
-// dangerous_9.mp3
-// deadmyforce.mp3
-// destinyscoming.mp3
-// destroyed_stones.mp3
-// destroyer_1.mp3
-// destroyer_2.mp3
-// digitaldiamond.mp3
-// digitalrolling.mp3
-// digitalsaw.mp3
-// digitsaw2.mp3
-// energy_upload_loop.mp3
-// error.mp3
-// evil_robot.mp3
-// evil_robot2.mp3
-// exp_1.mp3
-// evil_robot3.mp3
-// exp_2.mp3
-// factory.mp3
-// failed.mp3
-// fantasy.mp3
-// fantasy3.mp3
-// fantasy4.mp3
-// fatal.mp3
-// flame.mp3
-// flame_2.mp3
-// flame_3.mp3
-// flamestart.mp3
-// forcedead.mp3
-// forcedead3.mp3
-// frog.mp3
-// further.mp3
-// furtherlouder.mp3
-// gameover_loud.mp3
-// gmentert_loud.mp3
-// gum.mp3
-// hanging.mp3
-// highspace.mp3
-// holy_moment.mp3
-// iamnotufo.mp3
-// invicible.mp3
-// laser.mp3
-// laser2.mp3
-// laser3.mp3
-// laser34.mp3
-// laser_interceptor.mp3
-// laser_interceptor_2.mp3
-// laserdot.mp3
-// laserexp2.mp3
-// laserexp_loud.mp3
-// lowR.mp3
-// lowR2.mp3
-// lowR3.mp3
-// lowR4.mp3
-// lowbattery.mp3
-// magic.mp3
-// magic_2.mp3
-// magic_3.mp3
-// magic_4.mp3
-// message2.mp3
-// message3.mp3
-// message_loud.mp3
-// moment2.mp3
-// monster_1.mp3
-// monster_2.mp3
-// monster_3.mp3
-// monster_4.mp3
-// monster_5.mp3
-// monster_6.mp3
-// monster_7.mp3
-// monsterheart.mp3
-// monsterheart2.mp3
-// moreexplosion.mp3
-// mystic.mp3
-// mystic2.mp3
-// mystic3.mp3
-// nature.mp3
-// nature2.mp3
-// nature3.mp3
-// nature4.mp3
-// nature5.mp3
-// nightmare.mp3
-// poisongas.mp3
-// proton.mp3
-// proton2.mp3
-// proton3.mp3
-// proton4.mp3
-// proton5.mp3
-// psz_dead.mp3
-// psz_ready.mp3
-// psz_ready2.mp3
-// psz_ready3.mp3
-// psz_ready4.mp3
-// psz_ready5.mp3
-// psz_ready6.mp3
-// psz_ready7.mp3
-// psz_ready8.mp3
-// psz_select.mp3
-// radioactivity.mp3
-// recall.mp3
-// reload_lasergun.mp3
-// roboticfactory.mp3
-// roboticnoise.mp3
-// roboticnoise2.mp3
-// shake.mp3
-// shake_electrical.mp3
-// shipready.mp3
-// smf.mp3
-// somedead.mp3
-// soul_fighter.mp3
-// spaceandtime 2.mp3
-// spaceandtime.mp3
-// spacebug.mp3
-// spacebug_1.mp3
-// spacebug_2.mp3
-// spacebug_3.mp3
-// spacebug_4.mp3
-// spacebug_5.mp3
-// spacesonicnoise.mp3
-// sparkles.mp3
-// sparkles1.mp3
-// specialinterference.mp3
-// special_reload.mp3
-// spike_1.mp3
-// spike_10.mp3
-// spike_11.mp3
-// spike_12.mp3
-// spike_2.mp3
-// spike_3.mp3
-// spike_4.mp3
-// spike_5.mp3
-// spike_6.mp3
-// spike_7.mp3
-// spike_8.mp3
-// spike_9.mp3
-// splats.mp3
-// splats_2.mp3
-// steal_1.mp3
-// steal_2.mp3
-// steal_3.mp3
-// teleportawy.mp3
-// themoment.mp3
-// timeisout.mp3
-// timeisright.mp3
-// timesisright2.mp3
-// timewarp.mp3
-// timewarp_2.mp3
-// tpX.mp3
-// tunnel_destroying.mp3
-// ufo5.mp3
-// ufodead.mp3
-// ufodead2.mp3
-// ufodead3.mp3
-// ufolouder.mp3
-// ufosignal.mp3
-// ufosignal2.mp3
-// ufosignal3.mp3
-// unitready.mp3
-// unitready2.mp3
-// unitready3.mp3
-// whatwasthis.mp3
-// whereisthepoint.mp3
-// whyamiarobot.mp3
-// whyamiarobot2.mp3
-// whyamiarobot3.mp3
-// whyamiarobot4.mp3
-// whyamiarobot5.mp3
-// win_loud.mp3
-// wonder_1.mp3
-// wonder_2.mp3
-// wonder_3.mp3
-// wonder_4.mp3
-// wonder_5.mp3
-
 #[derive(AssetCollection, Resource)]
 pub struct SoundCollection {
     #[asset(path = "sounds/amazing_1.mp3")]
@@ -466,4 +254,388 @@ pub struct SoundCollection {
 
     #[asset(path = "sounds/laser34.mp3")]
     pub laser34: Handle<AudioSource>,
+
+    #[asset(path = "sounds/laser_interceptor.mp3")]
+    pub laser_interceptor: Handle<AudioSource>,
+
+    #[asset(path = "sounds/laser_interceptor_2.mp3")]
+    pub laser_interceptor_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/laserdot.mp3")]
+    pub laserdot: Handle<AudioSource>,
+
+    #[asset(path = "sounds/laserexp2.mp3")]
+    pub laserexp2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/laserexp_loud.mp3")]
+    pub laserexp_loud: Handle<AudioSource>,
+
+    #[asset(path = "sounds/lowR.mp3")]
+    pub low_r: Handle<AudioSource>,
+
+    #[asset(path = "sounds/lowR2.mp3")]
+    pub low_r2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/lowR3.mp3")]
+    pub low_r3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/lowR4.mp3")]
+    pub low_r4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/lowbattery.mp3")]
+    pub lowbattery: Handle<AudioSource>,
+
+    #[asset(path = "sounds/magic.mp3")]
+    pub magic: Handle<AudioSource>,
+
+    #[asset(path = "sounds/magic_2.mp3")]
+    pub magic_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/magic_3.mp3")]
+    pub magic_3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/magic_4.mp3")]
+    pub magic_4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/message2.mp3")]
+    pub message2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/message3.mp3")]
+    pub message3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/message_loud.mp3")]
+    pub message_loud: Handle<AudioSource>,
+
+    #[asset(path = "sounds/moment2.mp3")]
+    pub moment2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monster_1.mp3")]
+    pub monster_1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monster_2.mp3")]
+    pub monster_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monster_3.mp3")]
+    pub monster_3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monster_4.mp3")]
+    pub monster_4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monster_5.mp3")]
+    pub monster_5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monster_6.mp3")]
+    pub monster_6: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monster_7.mp3")]
+    pub monster_7: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monsterheart.mp3")]
+    pub monsterheart: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monsterheart2.mp3")]
+    pub monsterheart2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/moreexplosion.mp3")]
+    pub moreexplosion: Handle<AudioSource>,
+
+    #[asset(path = "sounds/mystic.mp3")]
+    pub mystic: Handle<AudioSource>,
+
+    #[asset(path = "sounds/mystic2.mp3")]
+    pub mystic2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/mystic3.mp3")]
+    pub mystic3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/nature.mp3")]
+    pub nature: Handle<AudioSource>,
+
+    #[asset(path = "sounds/nature2.mp3")]
+    pub nature2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/nature3.mp3")]
+    pub nature3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/nature4.mp3")]
+    pub nature4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/nature5.mp3")]
+    pub nature5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/nightmare.mp3")]
+    pub nightmare: Handle<AudioSource>,
+
+    #[asset(path = "sounds/poisongas.mp3")]
+    pub poisongas: Handle<AudioSource>,
+
+    #[asset(path = "sounds/proton.mp3")]
+    pub proton: Handle<AudioSource>,
+
+    #[asset(path = "sounds/proton2.mp3")]
+    pub proton2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/proton3.mp3")]
+    pub proton3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/proton4.mp3")]
+    pub proton4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/proton5.mp3")]
+    pub proton5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_dead.mp3")]
+    pub psz_dead: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready.mp3")]
+    pub psz_ready: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready2.mp3")]
+    pub psz_ready2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready3.mp3")]
+    pub psz_ready3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready4.mp3")]
+    pub psz_ready4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready5.mp3")]
+    pub psz_ready5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready6.mp3")]
+    pub psz_ready6: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready7.mp3")]
+    pub psz_ready7: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready8.mp3")]
+    pub psz_ready8: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_select.mp3")]
+    pub psz_select: Handle<AudioSource>,
+
+    #[asset(path = "sounds/radioactivity.mp3")]
+    pub radioactivity: Handle<AudioSource>,
+
+    #[asset(path = "sounds/recall.mp3")]
+    pub recall: Handle<AudioSource>,
+
+    #[asset(path = "sounds/reload_lasergun.mp3")]
+    pub reload_lasergun: Handle<AudioSource>,
+
+    #[asset(path = "sounds/roboticfactory.mp3")]
+    pub roboticfactory: Handle<AudioSource>,
+
+    #[asset(path = "sounds/roboticnoise.mp3")]
+    pub roboticnoise: Handle<AudioSource>,
+
+    #[asset(path = "sounds/roboticnoise2.mp3")]
+    pub roboticnoise2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/shake.mp3")]
+    pub shake: Handle<AudioSource>,
+
+    #[asset(path = "sounds/shake_electrical.mp3")]
+    pub shake_electrical: Handle<AudioSource>,
+
+    #[asset(path = "sounds/shipready.mp3")]
+    pub shipready: Handle<AudioSource>,
+
+    #[asset(path = "sounds/smf.mp3")]
+    pub smf: Handle<AudioSource>,
+
+    #[asset(path = "sounds/somedead.mp3")]
+    pub somedead: Handle<AudioSource>,
+
+    #[asset(path = "sounds/soul_fighter.mp3")]
+    pub soul_fighter: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spaceandtime 2.mp3")]
+    pub spaceandtime_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spaceandtime.mp3")]
+    pub spaceandtime: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spacebug.mp3")]
+    pub spacebug: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spacebug_1.mp3")]
+    pub spacebug_1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spacebug_2.mp3")]
+    pub spacebug_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spacebug_3.mp3")]
+    pub spacebug_3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spacebug_4.mp3")]
+    pub spacebug_4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spacebug_5.mp3")]
+    pub spacebug_5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spacesonicnoise.mp3")]
+    pub spacesonicnoise: Handle<AudioSource>,
+
+    #[asset(path = "sounds/sparkles.mp3")]
+    pub sparkles: Handle<AudioSource>,
+
+    #[asset(path = "sounds/sparkles1.mp3")]
+    pub sparkles1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/specialinterference.mp3")]
+    pub specialinterference: Handle<AudioSource>,
+
+    #[asset(path = "sounds/special_reload.mp3")]
+    pub special_reload: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_1.mp3")]
+    pub spike_1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_10.mp3")]
+    pub spike_10: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_11.mp3")]
+    pub spike_11: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_12.mp3")]
+    pub spike_12: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_2.mp3")]
+    pub spike_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_3.mp3")]
+    pub spike_3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_4.mp3")]
+    pub spike_4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_5.mp3")]
+    pub spike_5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_6.mp3")]
+    pub spike_6: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_7.mp3")]
+    pub spike_7: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_8.mp3")]
+    pub spike_8: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_9.mp3")]
+    pub spike_9: Handle<AudioSource>,
+
+    #[asset(path = "sounds/splats.mp3")]
+    pub splats: Handle<AudioSource>,
+
+    #[asset(path = "sounds/splats_2.mp3")]
+    pub splats_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/steal_1.mp3")]
+    pub steal_1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/steal_2.mp3")]
+    pub steal_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/steal_3.mp3")]
+    pub steal_3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/teleportawy.mp3")]
+    pub teleportawy: Handle<AudioSource>,
+
+    #[asset(path = "sounds/themoment.mp3")]
+    pub themoment: Handle<AudioSource>,
+
+    #[asset(path = "sounds/timeisout.mp3")]
+    pub timeisout: Handle<AudioSource>,
+
+    #[asset(path = "sounds/timeisright.mp3")]
+    pub timeisright: Handle<AudioSource>,
+
+    #[asset(path = "sounds/timesisright2.mp3")]
+    pub timesisright2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/timewarp.mp3")]
+    pub timewarp: Handle<AudioSource>,
+
+    #[asset(path = "sounds/timewarp_2.mp3")]
+    pub timewarp_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/tpX.mp3")]
+    pub tp_x: Handle<AudioSource>,
+
+    #[asset(path = "sounds/tunnel_destroying.mp3")]
+    pub tunnel_destroying: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufo5.mp3")]
+    pub ufo5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufodead.mp3")]
+    pub ufodead: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufodead2.mp3")]
+    pub ufodead2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufodead3.mp3")]
+    pub ufodead3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufolouder.mp3")]
+    pub ufolouder: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufosignal.mp3")]
+    pub ufosignal: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufosignal2.mp3")]
+    pub ufosignal2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufosignal3.mp3")]
+    pub ufosignal3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/unitready.mp3")]
+    pub unitready: Handle<AudioSource>,
+
+    #[asset(path = "sounds/unitready2.mp3")]
+    pub unitready2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/unitready3.mp3")]
+    pub unitready3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/whatwasthis.mp3")]
+    pub whatwasthis: Handle<AudioSource>,
+
+    #[asset(path = "sounds/whereisthepoint.mp3")]
+    pub whereisthepoint: Handle<AudioSource>,
+
+    #[asset(path = "sounds/whyamiarobot.mp3")]
+    pub whyamiarobot: Handle<AudioSource>,
+
+    #[asset(path = "sounds/whyamiarobot2.mp3")]
+    pub whyamiarobot2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/whyamiarobot3.mp3")]
+    pub whyamiarobot3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/whyamiarobot4.mp3")]
+    pub whyamiarobot4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/whyamiarobot5.mp3")]
+    pub whyamiarobot5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/win_loud.mp3")]
+    pub win_loud: Handle<AudioSource>,
+
+    #[asset(path = "sounds/wonder_1.mp3")]
+    pub wonder_1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/wonder_2.mp3")]
+    pub wonder_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/wonder_3.mp3")]
+    pub wonder_3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/wonder_4.mp3")]
+    pub wonder_4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/wonder_5.mp3")]
+    pub wonder_5: Handle<AudioSource>,
 }
