@@ -1,7 +1,7 @@
+assets/backgrounds/** filter=lfs diff=lfs merge=lfs -text
+assets/fonts/** filter=lfs diff=lfs merge=lfs -text
+assets/images/** filter=lfs diff=lfs merge=lfs -text
 assets/models/** filter=lfs diff=lfs merge=lfs -text
+assets/music/** filter=lfs diff=lfs merge=lfs -text
 assets/sounds/** filter=lfs diff=lfs merge=lfs -text
 assets/ui_sounds/** filter=lfs diff=lfs merge=lfs -text
-assets/music/** filter=lfs diff=lfs merge=lfs -text
-assets/fonts/** filter=lfs diff=lfs merge=lfs -text
-assets/backgrounds/** filter=lfs diff=lfs merge=lfs -text
-assets/images/** filter=lfs diff=lfs merge=lfs -text
