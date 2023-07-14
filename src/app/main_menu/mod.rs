@@ -4,11 +4,14 @@ use strum_macros::EnumIter;
 
 use crate::{
     assets::{backgrounds::BackgroundCollection, fonts::FontCollection, images::ImageCollection},
-    utility::{change_button_colors, despawn_components},
-    NORMAL_BUTTON, TEXT_COLOR,
+    utility::despawn_components,
 };
 
-use super::{app_state_machine::AppTransitionEvent, AppState};
+use super::{
+    app_state_machine::AppTransitionEvent,
+    theme::{change_button_colors, NORMAL_BUTTON, TEXT_COLOR},
+    AppState,
+};
 
 pub struct MainMenuPlugin;
 

@@ -6,4 +6,5 @@ pub mod images;
 pub mod items;
 pub mod music;
 pub mod sounds;
+pub mod ui_sounds;
 pub mod vehicles;

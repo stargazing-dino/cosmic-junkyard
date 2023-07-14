@@ -2,11 +2,16 @@ use bevy::prelude::*;
 
 use crate::{
     assets::{backgrounds::BackgroundCollection, fonts::FontCollection},
-    utility::{change_button_colors, despawn_components},
-    NORMAL_BUTTON,
+    utility::despawn_components,
 };
 
-use super::{app_state_machine::AppTransitionEvent, game_levels::LEVELS, AppState, BackButton};
+use super::{
+    app_state_machine::AppTransitionEvent,
+    game_levels::LEVELS,
+    navigation::BackButton,
+    theme::{change_button_colors, NORMAL_BUTTON},
+    AppState,
+};
 
 pub struct LevelSelectionPlugin;
 

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{app::app_state_machine::AppState, PreviousState};
+use crate::app::app_state_machine::{AppState, PreviousState};
 
 pub struct GameStateMachinePlugin;
 
@@ -8,7 +8,6 @@ impl Plugin for GameStateMachinePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameState>()
             .add_event::<GameTransitionEvent>()
-            .init_resource::<PreviousState<GameState>>()
             .add_systems(Update, in_game_transition)
             .add_systems(
                 Update,

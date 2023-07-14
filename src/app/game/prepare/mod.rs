@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 
 use crate::{
-    app::app_state_machine::AppState, assets::fonts::FontCollection, utility::despawn_components,
-    NORMAL_BUTTON,
+    app::{app_state_machine::AppState, theme::NORMAL_BUTTON},
+    assets::fonts::FontCollection,
+    utility::despawn_components,
 };
 
 use self::{input::InputPlugin, music::MusicPlugin};

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{assets::fonts::FontCollection, utility::despawn_components};
 
-use super::{AppState, BackButton};
+use super::{navigation::BackButton, AppState};
 
 pub struct SettingsDialogPlugin;
 

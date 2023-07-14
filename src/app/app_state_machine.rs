@@ -1,7 +1,5 @@
 use bevy::prelude::*;
 
-use crate::PreviousState;
-
 pub struct AppStateMachinePlugin;
 
 impl Plugin for AppStateMachinePlugin {
@@ -12,6 +10,10 @@ impl Plugin for AppStateMachinePlugin {
             .add_systems(Update, apply_transition);
     }
 }
+
+// TODO: We should probably prefer a stack or something for this. Eh.
+#[derive(Resource, Default, Debug)]
+pub struct PreviousState<S: States>(pub Option<S>);
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
 pub enum AppState {
