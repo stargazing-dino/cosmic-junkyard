@@ -26,43 +26,35 @@ use self::{
     game_state_machine::{GameState, GameStateMachinePlugin},
     gravity::PointGravity,
     playing::PlayingPlugin,
-    prepare::PreparePlugin,
 };
 
 mod game_state_machine;
 mod gravity;
 mod playing;
-mod prepare;
 
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(GameStateMachinePlugin)
-            .add_loading_state(
-                LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::Preparing),
-            )
-            .add_collection_to_loading_state::<_, PlanetCollection>(GameState::AssetLoading)
-            .add_plugins(PhysicsPlugins::default())
-            .insert_resource(Gravity::ZERO)
-            .insert_resource(Bounds::default())
-            .insert_resource(AmbientLight {
-                color: Color::WHITE,
-                brightness: 1.0 / 5.0f32,
-            })
-            .add_plugins((PreparePlugin, PlayingPlugin))
-            .add_systems(
-                OnEnter(GameState::Preparing),
-                (setup_graphics, setup_level_gen),
-            );
-        // .add_system(
-        //     resume_play.run_if(
-        //         in_state(AppState::InGameLevel).and_then(in_state(GameState::Preparing)),
-        //     ),
-        // );
-        // .add_system(
-        //     pause_play.run_if(in_state(AppState::InGameLevel).or_else(in_state(AppState::Prepare))),
-        // );
+        app.add_loading_state(
+            LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::Playing),
+        )
+        .add_collection_to_loading_state::<_, PlanetCollection>(GameState::AssetLoading)
+        .add_plugins((
+            GameStateMachinePlugin,
+            PhysicsPlugins::default(),
+            PlayingPlugin,
+        ))
+        .insert_resource(Gravity::ZERO)
+        .insert_resource(Bounds::default())
+        .insert_resource(AmbientLight {
+            color: Color::WHITE,
+            brightness: 1.0 / 5.0f32,
+        })
+        .add_systems(
+            OnEnter(GameState::Playing),
+            (setup_graphics, setup_level_gen),
+        );
     }
 }
 

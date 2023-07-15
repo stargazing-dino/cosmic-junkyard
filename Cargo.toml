@@ -34,10 +34,7 @@ rand = "0.8.3"
 leafwing-input-manager = "0.10.0"
 strum_macros = "0.25.0"
 strum = "0.25.0"
-# bevy_xpbd_3d = "0.1.0"
-bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd.git", features = [
-    "debug-plugin",
-] }
+bevy_xpbd_3d = { version = "0.2.0", features = ["debug-plugin"] }
 bevy-trait-query = "0.3.0"
 
 [build-dependencies]

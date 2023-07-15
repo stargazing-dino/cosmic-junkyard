@@ -30,7 +30,6 @@ fn setup_player(mut commands: Commands) {
 
 pub enum PlayerNumber {
     One,
-
     Two,
 }
 

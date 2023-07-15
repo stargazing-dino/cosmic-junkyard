@@ -3,8 +3,6 @@ use bevy_xpbd_3d::prelude::*;
 
 use crate::app::game::game_state_machine::GameState;
 
-use super::Planet;
-
 pub struct GravityPlugin;
 
 impl Plugin for GravityPlugin {
@@ -15,7 +13,7 @@ impl Plugin for GravityPlugin {
             .register_component_as::<dyn GravitySource, PlanarGravity>()
             .add_systems(
                 Update,
-                (update_gravity, move_gravity_sources).run_if(in_state(GameState::Playing)),
+                (update_gravity,).run_if(in_state(GameState::Playing)),
             );
     }
 }
@@ -110,12 +108,5 @@ fn update_gravity(
         }
 
         external_force.set_force(total_force);
-    }
-}
-
-// TODO: We need to revisit this once parent's move their children
-fn move_gravity_sources(mut gravity_source_query: Query<&mut Position, With<Planet>>) {
-    for mut position in gravity_source_query.iter_mut() {
-        position.0 = position.0 + Vec3::new(0.4, 0.0, 0.0);
     }
 }

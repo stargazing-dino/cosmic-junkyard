@@ -8,7 +8,7 @@ mod assets;
 mod saving;
 mod utility;
 
-// TODO: I don't want to rely on hardcoded values here
+// TODO: For reactive UI, we shouldn't rely on these.
 const WINDOW_WIDTH: f32 = 800.0;
 const WINDOW_HEIGHT: f32 = 600.0;
 

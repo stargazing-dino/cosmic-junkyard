@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::app::app_state_machine::{AppState, PreviousState};
+use crate::app::app_state_machine::AppState;
 
 pub struct GameStateMachinePlugin;
 
@@ -8,26 +8,19 @@ impl Plugin for GameStateMachinePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameState>()
             .add_event::<GameTransitionEvent>()
-            .add_systems(Update, in_game_transition)
             .add_systems(
                 Update,
-                apply_transition.run_if(in_state(AppState::InGameLevel)),
+                from_none_state, // .run_if(not(in_state(AppState::InGameLevel))),
+            )
+            .add_systems(
+                Update,
+                game_transition.run_if(in_state(AppState::InGameLevel)),
             );
     }
 }
 
-fn in_game_transition(
-    current_state: Res<State<AppState>>,
-    mut next_state: ResMut<NextState<GameState>>,
-) {
-    if current_state.is_changed() {
-        if *current_state == AppState::InGameLevel {
-            next_state.set(GameState::AssetLoading);
-        } else {
-            next_state.set(GameState::None);
-        }
-    }
-}
+#[derive(Resource, Default, Debug)]
+pub struct PreviousState<S: States>(pub Option<S>);
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
 pub enum GameState {
@@ -40,8 +33,6 @@ pub enum GameState {
     // TODO: I'm curious if this should instead go on the AppState? So I can
     // keep this game state game specific naw mean?
     AssetLoading,
-
-    Preparing,
 
     Playing,
 
@@ -64,15 +55,28 @@ pub enum GameTransitionEvent {
     Fail,
 }
 
-fn apply_transition(
-    mut previous_state: ResMut<PreviousState<GameState>>,
+// I don't want
+fn from_none_state(
+    current_state: Res<State<AppState>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if current_state.is_changed() {
+        if *current_state == AppState::InGameLevel {
+            next_state.set(GameState::AssetLoading);
+        } else {
+            next_state.set(GameState::None);
+        }
+    }
+}
+
+fn game_transition(
+    mut previous_state: Local<PreviousState<GameState>>,
     current_state: Res<State<GameState>>,
     mut next_state: ResMut<NextState<GameState>>,
     mut transition_event_reader: EventReader<GameTransitionEvent>,
 ) {
     for transition_event in transition_event_reader.iter() {
         let next_queued = match (current_state.clone(), transition_event) {
-            (GameState::Preparing, GameTransitionEvent::Play) => GameState::Playing,
             (GameState::Playing, GameTransitionEvent::Pause) => GameState::Paused,
             (GameState::Paused, GameTransitionEvent::Unpause) => GameState::Playing,
             (GameState::Playing, GameTransitionEvent::Complete) => GameState::Completed,

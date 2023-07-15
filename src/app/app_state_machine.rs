@@ -6,14 +6,43 @@ impl Plugin for AppStateMachinePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<AppState>()
             .add_event::<AppTransitionEvent>()
-            .init_resource::<PreviousState<AppState>>()
-            .add_systems(Update, apply_transition);
+            .add_systems(Update, app_transition);
     }
 }
 
-// TODO: We should probably prefer a stack or something for this. Eh.
-#[derive(Resource, Default, Debug)]
-pub struct PreviousState<S: States>(pub Option<S>);
+use std::collections::VecDeque;
+
+#[derive(Debug)]
+pub struct StateStack<S: States> {
+    queue: VecDeque<S>,
+    max_size: usize,
+}
+
+impl Default for StateStack<AppState> {
+    fn default() -> Self {
+        Self::new(10)
+    }
+}
+
+impl<S: States> StateStack<S> {
+    pub fn new(max_size: usize) -> Self {
+        Self {
+            queue: VecDeque::with_capacity(max_size),
+            max_size,
+        }
+    }
+
+    pub fn push(&mut self, state: S) {
+        if self.queue.len() == self.max_size {
+            self.queue.pop_front();
+        }
+        self.queue.push_back(state);
+    }
+
+    pub fn pop(&mut self) -> Option<S> {
+        self.queue.pop_back()
+    }
+}
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
 pub enum AppState {
@@ -48,8 +77,8 @@ pub enum AppTransitionEvent {
     GoBack,
 }
 
-fn apply_transition(
-    mut previous_state: ResMut<PreviousState<AppState>>,
+fn app_transition(
+    mut previous_state: Local<StateStack<AppState>>,
     current_state: Res<State<AppState>>,
     mut next_state: ResMut<NextState<AppState>>,
     mut transition_event_reader: EventReader<AppTransitionEvent>,
@@ -82,13 +111,11 @@ fn apply_transition(
             // Default Transitions
             // TODO: Curious if this will cause a loop where previous is what
             // previous was previously, lol
-            (_, AppTransitionEvent::GoBack) => {
-                previous_state.0.clone().unwrap_or(AppState::MainMenu)
-            }
+            (_, AppTransitionEvent::GoBack) => previous_state.pop().unwrap_or(AppState::MainMenu),
             _ => panic!("Invalid state transition"),
         };
 
-        previous_state.0 = Some(current_state.clone());
+        previous_state.push(current_state.clone());
         next_state.0 = Some(next_queued);
     }
 }
