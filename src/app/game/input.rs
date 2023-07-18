@@ -1,3 +1,17 @@
+pub struct InputPlugin;
+
+impl Plugin for InputPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_event::<PlanetChangeEvent>()
+            .add_plugins(InputManagerPlugin::<PlanetAction>::default())
+            .add_systems(OnEnter(GameState::Preparing), setup)
+            .add_systems(
+                Update,
+                (change_planets,).run_if(in_state(GameState::Preparing)),
+            );
+    }
+}
+
 #[derive(Actionlike, PartialEq, Clone, Copy, Debug)]
 pub enum PlayerAction {
     Pause,

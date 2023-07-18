@@ -1,0 +1,2481 @@
+// use std::{fs::File, io::Write};
+
+// use bevy::{prelude::*, scene::DynamicSceneBundle, tasks::IoTaskPool};
+// use bevy_xpbd_3d::prelude::{Friction, Mass, Position, RigidBody};
+
+// pub struct SavingPlugin;
+
+// impl Plugin for SavingPlugin {
+//     fn build(&self, app: &mut App) {
+//         app.register_type::<Planet>()
+//             .register_type::<Junk>()
+//             .register_type::<Transform>()
+//             .register_type::<Friction>()
+//             .register_type::<Mass>()
+//             .register_type::<Position>()
+//             .register_type::<RigidBody>()
+//             .add_systems(
+//                 (save_scene_system,).in_schedule(OnEnter(GameState::Playing)), // .run_if(input_toggle_active(false, KeyCode::Escape)),
+//             );
+//     }
+// }
+
+// const NEW_SCENE_FILE_PATH: &str = "scenes/scene_one.scn.ron";
+
+// fn load_scene_system(mut commands: Commands, asset_server: Res<AssetServer>) {
+//     // "Spawning" a scene bundle creates a new entity and spawns new instances
+//     // of the given scene's entities as children of that entity.
+//     commands.spawn(DynamicSceneBundle {
+//         // Scenes are loaded just like any other asset.
+//         scene: asset_server.load(NEW_SCENE_FILE_PATH),
+//         ..default()
+//     });
+// }
+
+// fn save_scene_system(world: &mut World) {
+//     // The TypeRegistry resource contains information about all registered types (including
+//     // components). This is used to construct scenes.
+//     let mut query = world.query_filtered::<Entity, With<Transform>>();
+//     let type_registry = world.resource::<AppTypeRegistry>();
+
+//     // Scenes can be created from any ECS World. You can either create a new one for the scene or
+//     // use the current World.
+//     let scene_world = World::new();
+//     let mut scene_builder = DynamicSceneBuilder::from_world(&scene_world);
+
+//     scene_builder.extract_entities(query.iter(&world));
+
+//     let scene = scene_builder.build();
+
+//     // Scenes can be serialized like this:
+//     let serialized_scene = scene.serialize_ron(type_registry).unwrap();
+
+//     // Showing the scene in the console
+//     info!("{}", serialized_scene);
+
+//     // Writing the scene to a new file. Using a task to avoid calling the filesystem APIs in a system
+//     // as they are blocking
+//     // This can't work in WASM as there is no filesystem access
+//     #[cfg(not(target_arch = "wasm32"))]
+//     IoTaskPool::get()
+//         .spawn(async move {
+//             // Write the scene RON data to file
+//             File::create(format!("assets/{NEW_SCENE_FILE_PATH}"))
+//                 .and_then(|mut file| file.write(serialized_scene.as_bytes()))
+//                 .expect("Error while writing scene to file");
+//         })
+//         .detach();
+// }
+use bevy::prelude::*;
+
+pub struct AppStateMachinePlugin;
+
+impl Plugin for AppStateMachinePlugin {
+    fn build(&self, app: &mut App) {
+        app.add_state::<AppState>()
+            .add_event::<AppTransitionEvent>()
+            .add_systems(Update, app_transition);
+    }
+}
+
+use std::collections::VecDeque;
+
+#[derive(Debug)]
+pub struct StateStack<S: States> {
+    queue: VecDeque<S>,
+    max_size: usize,
+}
+
+impl Default for StateStack<AppState> {
+    fn default() -> Self {
+        Self::new(10)
+    }
+}
+
+impl<S: States> StateStack<S> {
+    pub fn new(max_size: usize) -> Self {
+        Self {
+            queue: VecDeque::with_capacity(max_size),
+            max_size,
+        }
+    }
+
+    pub fn push(&mut self, state: S) {
+        if self.queue.len() == self.max_size {
+            self.queue.pop_front();
+        }
+        self.queue.push_back(state);
+    }
+
+    pub fn pop(&mut self) -> Option<S> {
+        self.queue.pop_back()
+    }
+}
+
+#[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
+pub enum AppState {
+    #[default]
+    AssetLoading,
+
+    /// The user is selecting a level to play
+    MainMenu,
+
+    /// The game is paused
+    Settings,
+
+    /// The user wants to navigate to level selection
+    LevelSelection,
+
+    /// The user is in the game
+    InGameLevel,
+}
+
+#[derive(Event)]
+pub enum AppTransitionEvent {
+    Continue,
+
+    SelectLevel(Option<usize>),
+
+    Retry,
+
+    NextLevel(usize),
+
+    Settings,
+
+    GoBack,
+}
+
+fn app_transition(
+    mut previous_state: Local<StateStack<AppState>>,
+    current_state: Res<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
+    mut transition_event_reader: EventReader<AppTransitionEvent>,
+) {
+    for transition_event in transition_event_reader.iter() {
+        let next_queued = match (current_state.clone(), transition_event) {
+            // Main Menu Transitions
+            (AppState::MainMenu, AppTransitionEvent::Continue) => {
+                // TODO: Get the last level played and pass it through
+                AppState::InGameLevel
+            }
+            (AppState::MainMenu, AppTransitionEvent::SelectLevel(None)) => AppState::LevelSelection,
+            (AppState::MainMenu, AppTransitionEvent::Settings) => AppState::Settings,
+
+            // Settings Transitions
+
+            // Level Selection Transitions
+            (AppState::LevelSelection, AppTransitionEvent::SelectLevel(_level)) => {
+                // TODO: Pass through the level selected
+                AppState::InGameLevel
+            }
+
+            // In Game Transitions
+            (AppState::InGameLevel, AppTransitionEvent::NextLevel(_level)) => {
+                // TODO: Pass through the level selected
+                AppState::InGameLevel
+            }
+            (AppState::InGameLevel, AppTransitionEvent::Retry) => AppState::InGameLevel,
+
+            // Default Transitions
+            // TODO: Curious if this will cause a loop where previous is what
+            // previous was previously, lol
+            (_, AppTransitionEvent::GoBack) => previous_state.pop().unwrap_or(AppState::MainMenu),
+            _ => panic!("Invalid state transition"),
+        };
+
+        previous_state.push(current_state.clone());
+        next_state.0 = Some(next_queued);
+    }
+}
+// TODO: Replace this with https://github.com/nicopap/ui-navigation
+use bevy::prelude::*;
+use bevy::reflect::TypePath;
+use leafwing_input_manager::orientation::Direction;
+use leafwing_input_manager::prelude::*;
+
+use super::AppState;
+
+// This plugin maps inputs to an input-type agnostic action-state
+// We need to provide it with an enum which stores the possible actions a player could take
+pub struct PlayerInputPlugin;
+
+impl Plugin for PlayerInputPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(InputManagerPlugin::<UiAction>::default())
+            .add_systems(OnEnter(AppState::InGameLevel), (setup_player,));
+    }
+}
+
+fn setup_player(mut commands: Commands) {
+    commands.spawn(PlayerBundle {
+        player: Player::default(),
+        focus: Focus(None),
+        ui_action_manager: InputManagerBundle {
+            input_map: UiAction::default_input_map(),
+            ..default()
+        },
+    });
+}
+
+pub enum PlayerNumber {
+    One,
+    Two,
+}
+
+#[derive(Component)]
+pub struct Focus(pub Option<Entity>);
+
+// I think having cursor related stuff in the player might be good?
+#[derive(Component)]
+pub struct Player {
+    pub player_number: PlayerNumber,
+}
+
+impl Default for Player {
+    fn default() -> Self {
+        Self {
+            player_number: PlayerNumber::One,
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct PlayerBundle {
+    pub player: Player,
+
+    pub focus: Focus,
+
+    pub ui_action_manager: InputManagerBundle<UiAction>,
+}
+
+#[derive(Actionlike, PartialEq, Clone, Copy, Debug, TypePath)]
+pub enum UiAction {
+    Move(Direction),
+
+    Select,
+}
+
+impl UiAction {
+    pub fn default_input_map() -> InputMap<Self> {
+        use UiAction::*;
+        let mut input_map = InputMap::default();
+
+        input_map.insert(KeyCode::Up, Move(Direction::NORTH));
+        input_map.insert(GamepadButtonType::DPadUp, Move(Direction::NORTH));
+
+        input_map.insert(KeyCode::Down, Move(Direction::SOUTH));
+        input_map.insert(GamepadButtonType::DPadDown, Move(Direction::SOUTH));
+
+        input_map.insert(KeyCode::Left, Move(Direction::WEST));
+        input_map.insert(GamepadButtonType::DPadLeft, Move(Direction::WEST));
+
+        input_map.insert(KeyCode::Right, Move(Direction::EAST));
+        input_map.insert(GamepadButtonType::DPadRight, Move(Direction::EAST));
+
+        input_map
+    }
+}
+// TODO: To be replaced with ron files :)
+// An array of levels
+pub const LEVELS: [&str; 3] = ["Level 1", "Level 2", "Level 3"];
+//! Random theme stuff
+
+use bevy::prelude::*;
+
+// TODO: Move to resource(s)? Or maybe a theme plugin?
+pub const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
+pub const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
+pub const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
+// const HOVERED_PRESSED_BUTTON: Color = Color::rgb(0.25, 0.65, 0.25);
+pub const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
+
+pub struct ThemePlugin;
+
+impl Plugin for ThemePlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, change_button_colors);
+    }
+}
+
+#[derive(Component)]
+pub struct Primary;
+
+pub fn change_button_colors(
+    mut interaction_query: Query<
+        (&Interaction, &mut BackgroundColor),
+        (Changed<Interaction>, With<Button>),
+    >,
+) {
+    for (interaction, mut color) in &mut interaction_query {
+        match *interaction {
+            Interaction::Pressed => {
+                *color = PRESSED_BUTTON.into();
+            }
+            Interaction::Hovered => {
+                *color = HOVERED_BUTTON.into();
+            }
+            Interaction::None => {
+                *color = NORMAL_BUTTON.into();
+            }
+        }
+    }
+}
+use std::time::Duration;
+
+use bevy::{audio::Volume, prelude::*, time::Stopwatch};
+
+use crate::{app::AppState, assets::sounds::SoundCollection};
+
+use super::JunkCollisionEvent;
+
+pub struct SoundsPlugin;
+
+impl Plugin for SoundsPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(SoundCollisionStopWatch(Stopwatch::new()))
+            .add_systems(
+                Update,
+                (junk_collisions,).run_if(in_state(AppState::InGameLevel)),
+            );
+    }
+}
+
+#[derive(Resource)]
+pub struct SoundCollisionStopWatch(Stopwatch);
+
+#[derive(Component)]
+pub struct CollisionSound;
+
+fn junk_collisions(
+    mut commands: Commands,
+    sound_collection: Res<SoundCollection>,
+    collision_sink_query: Query<&AudioSink, With<CollisionSound>>,
+    mut junk_collision_event_reader: EventReader<JunkCollisionEvent>,
+    mut sound_collision_stopwatch: ResMut<SoundCollisionStopWatch>,
+    time: Res<Time>,
+) {
+    sound_collision_stopwatch.0.tick(time.delta());
+
+    if sound_collision_stopwatch.0.elapsed() < Duration::from_secs_f32(1.0) {
+        return;
+    }
+
+    for _junk_collision in junk_collision_event_reader.iter() {
+        let sound = sound_collection.fatal.clone();
+
+        if let Ok(sink) = collision_sink_query.get_single() {
+            sink.play();
+        } else {
+            commands.spawn(AudioBundle {
+                source: sound,
+                settings: PlaybackSettings::ONCE.with_volume(Volume::new_relative(0.5)),
+                ..default()
+            });
+        }
+
+        sound_collision_stopwatch.0.reset();
+    }
+}
+use bevy::{
+    prelude::{
+        default, in_state, App, Commands, Entity, Event, EventWriter, GamepadButtonType,
+        IntoSystemConfigs, KeyCode, OnEnter, Plugin, Query, Update, Vec2, With,
+    },
+    reflect::TypePath,
+};
+use leafwing_input_manager::{orientation::Direction, prelude::*, Actionlike};
+
+use crate::app::{
+    game::{game_state_machine::GameState, MovementState, Planet},
+    player_input::{Focus, Player},
+};
+
+pub struct InputPlugin;
+
+impl Plugin for InputPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_event::<PlanetChangeEvent>()
+            .add_plugins(InputManagerPlugin::<PlanetAction>::default())
+            .add_systems(OnEnter(GameState::Preparing), setup)
+            .add_systems(
+                Update,
+                (change_planets,).run_if(in_state(GameState::Preparing)),
+            );
+    }
+}
+
+fn setup(mut commands: Commands) {
+    commands.spawn(InputManagerBundle {
+        input_map: PlanetAction::default_input_map(),
+        ..default()
+    });
+}
+
+// fn teardown(mut commands: Commands, query: Query<Entity, With<InputManager<PlanetAction>>>) {
+//     for entity in query.iter() {
+//         commands.entity(entity).despawn_recursive();
+//     }
+// }
+
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct MyDirection(Direction);
+
+impl TypePath for MyDirection {
+    fn type_path() -> &'static str {
+        "my_crate::my_module::MyType"
+    }
+    fn short_type_path() -> &'static str {
+        "MyType"
+    }
+}
+
+#[derive(Actionlike, Debug, Clone, PartialEq, TypePath)]
+pub enum PlanetAction {
+    Size(f32),
+
+    // #[reflect(ignore)]
+    Move(MyDirection),
+}
+
+impl PlanetAction {
+    pub fn default_input_map() -> InputMap<Self> {
+        use PlanetAction::*;
+        let mut input_map = InputMap::default();
+
+        // Movement
+        input_map.insert(KeyCode::Up, Move(MyDirection(Direction::NORTH)));
+        input_map.insert(
+            GamepadButtonType::DPadUp,
+            Move(MyDirection(Direction::NORTH)),
+        );
+
+        input_map.insert(KeyCode::Down, Move(MyDirection(Direction::SOUTH)));
+        input_map.insert(
+            GamepadButtonType::DPadDown,
+            Move(MyDirection(Direction::SOUTH)),
+        );
+
+        input_map.insert(KeyCode::Left, Move(MyDirection(Direction::WEST)));
+        input_map.insert(
+            GamepadButtonType::DPadLeft,
+            Move(MyDirection(Direction::WEST)),
+        );
+
+        input_map.insert(KeyCode::Right, Move(MyDirection(Direction::EAST)));
+        input_map.insert(
+            GamepadButtonType::DPadRight,
+            Move(MyDirection(Direction::EAST)),
+        );
+
+        input_map
+    }
+}
+
+#[derive(Event)]
+pub struct PlanetChangeEvent {
+    pub movement_state: MovementState,
+
+    pub size: f32,
+
+    pub emitter: Entity,
+}
+
+fn change_planets(
+    mut query: Query<(Entity, &ActionState<PlanetAction>, &Focus), With<Player>>,
+    mut planet_state_events: EventWriter<PlanetChangeEvent>,
+    mut planets: Query<&mut Planet>,
+) {
+    for (emitter, action_state, focus) in query.iter_mut() {
+        // We need a valid target (planet) in order to move it
+        let Focus(Some(target)) =  focus else {
+            continue;
+        };
+        let Ok(mut planet) = planets.get_mut(*target) else {
+            continue;
+        };
+        let mut intended_direction = Vec2::ZERO;
+
+        [
+            Direction::NORTH,
+            Direction::SOUTH,
+            Direction::EAST,
+            Direction::WEST,
+        ]
+        .iter()
+        .filter(|input_direction| {
+            action_state.pressed(PlanetAction::Move(MyDirection(**input_direction)))
+        })
+        .for_each(|direction| intended_direction += direction.unit_vector());
+
+        // Normalize the vector to prevent faster diagonal movement
+        if intended_direction.length() > 1.0 {
+            intended_direction = intended_direction.normalize();
+        }
+
+        let next_state = if intended_direction != Vec2::ZERO {
+            MovementState::Moving {
+                direction: intended_direction,
+            }
+        } else {
+            MovementState::Idle
+        };
+
+        // TODO: I'll somehow have to match off the input size. Dunno
+        // let intended_size = action_state
+        //     .get(PlanetAction::Size)
+        //     .map(|size| size * SIZE_UNIT)
+        //     .unwrap_or(planet.size);
+
+        if planet.state != next_state {
+            planet_state_events.send(PlanetChangeEvent {
+                movement_state: next_state,
+                size: 0.0,
+                emitter,
+            });
+        }
+
+        planet.state = next_state;
+    }
+}
+#[derive(Actionlike, PartialEq, Clone, Copy, Debug)]
+pub enum PlayerAction {
+    Pause,
+
+    Continue,
+}
+
+impl PlayerAction {
+    pub fn default_input_map() -> InputMap<Self> {
+        use PlayerAction::*;
+        let mut input_map = InputMap::default();
+
+        input_map.insert(KeyCode::Space, Continue);
+        input_map.insert(KeyCode::Space, Pause);
+
+        input_map
+    }
+}
+
+fn resume_play(
+    mut query: Query<(&ActionState<PlayerAction>, &Player)>,
+    mut transition_writer: EventWriter<AppTransitionEvent>,
+) {
+    for (action_state, _player) in query.iter_mut() {
+        if action_state.just_pressed(PlayerAction::Continue) {
+            transition_writer.send(AppTransitionEvent::UnpauseGame);
+        }
+    }
+}
+
+fn pause_play(
+    mut query: Query<(&ActionState<PlayerAction>, &Player)>,
+    mut transition_writer: EventWriter<AppTransitionEvent>,
+) {
+    for (action_state, _player) in query.iter_mut() {
+        if action_state.just_pressed(PlayerAction::Pause) {
+            transition_writer.send(AppTransitionEvent::PauseGame);
+        }
+    }
+}
+use bevy::prelude::*;
+
+use crate::app::app_state_machine::AppState;
+
+pub struct GameStateMachinePlugin;
+
+impl Plugin for GameStateMachinePlugin {
+    fn build(&self, app: &mut App) {
+        app.add_state::<GameState>()
+            .add_event::<GameTransitionEvent>()
+            .add_systems(
+                Update,
+                from_none_state, // .run_if(not(in_state(AppState::InGameLevel))),
+            )
+            .add_systems(
+                Update,
+                game_transition.run_if(in_state(AppState::InGameLevel)),
+            );
+    }
+}
+
+#[derive(Resource, Default, Debug)]
+pub struct PreviousState<S: States>(pub Option<S>);
+
+#[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
+pub enum GameState {
+    // We need this silliness because otherwise we'd immediately be in the AssetLoading
+    // state which, after loading, would move us to the preparing state.
+    // This would all be running in the background.
+    #[default]
+    None,
+
+    // TODO: I'm curious if this should instead go on the AppState? So I can
+    // keep this game state game specific naw mean?
+    AssetLoading,
+
+    Playing,
+
+    Paused,
+
+    /// The player beat the level
+    Completed,
+
+    /// The player failed the level
+    Failed,
+}
+
+#[derive(Event)]
+pub enum GameTransitionEvent {
+    Play,
+    Prepare,
+    Pause,
+    Unpause,
+    Complete,
+    Fail,
+}
+
+// I don't want
+fn from_none_state(
+    current_state: Res<State<AppState>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if current_state.is_changed() {
+        if *current_state == AppState::InGameLevel {
+            next_state.set(GameState::AssetLoading);
+        } else {
+            next_state.set(GameState::None);
+        }
+    }
+}
+
+fn game_transition(
+    mut previous_state: Local<PreviousState<GameState>>,
+    current_state: Res<State<GameState>>,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut transition_event_reader: EventReader<GameTransitionEvent>,
+) {
+    for transition_event in transition_event_reader.iter() {
+        let next_queued = match (current_state.clone(), transition_event) {
+            (GameState::Playing, GameTransitionEvent::Pause) => GameState::Paused,
+            (GameState::Paused, GameTransitionEvent::Unpause) => GameState::Playing,
+            (GameState::Playing, GameTransitionEvent::Complete) => GameState::Completed,
+            (GameState::Playing, GameTransitionEvent::Fail) => GameState::Failed,
+            _ => panic!("Invalid state transition"),
+        };
+
+        previous_state.0 = Some(current_state.clone());
+        next_state.0 = Some(next_queued);
+    }
+}
+use bevy::prelude::*;
+use bevy_xpbd_3d::prelude::*;
+
+use crate::app::game::game_state_machine::GameState;
+
+pub struct GravityPlugin;
+
+impl Plugin for GravityPlugin {
+    fn build(&self, app: &mut App) {
+        use bevy_trait_query::RegisterExt;
+
+        app.register_component_as::<dyn GravitySource, PointGravity>()
+            .register_component_as::<dyn GravitySource, PlanarGravity>()
+            .add_systems(
+                Update,
+                (update_gravity,).run_if(in_state(GameState::Playing)),
+            );
+    }
+}
+
+#[bevy_trait_query::queryable]
+pub trait GravitySource {
+    fn calculate_force(&self, position: Vec3, other_position: Vec3, mass: f32) -> Vec3;
+}
+
+#[derive(Component, Reflect, Default, Debug)]
+pub struct PointGravity {
+    pub gravity_strength: f32,
+
+    pub center_mass: f32,
+}
+
+impl GravitySource for PointGravity {
+    fn calculate_force(&self, position: Vec3, other_position: Vec3, mass: f32) -> Vec3 {
+        // Compute distance between planet and body
+        let distance = position.distance(other_position);
+
+        // Prevent division by very small numbers
+        // Replace 0.001 with a suitable small number
+        let safe_distance = distance.max(0.001);
+
+        // Compute gravitational force as per Newton's law
+        let gravity_force_magnitude =
+            self.gravity_strength * self.center_mass * mass / safe_distance.powi(2);
+        let gravity_vector = (position - other_position).normalize() * gravity_force_magnitude;
+
+        gravity_vector
+    }
+}
+
+/// According to classical physics, the gravitational field of an
+/// infinite plane is actually uniform. That is, it doesn't decrease
+/// with distance! This is a result of the superposition of the
+/// gravitational effects from all parts of the plane, near and far,
+/// which add up to a constant at any given height above the plane.
+/// The direction of the field is perpendicular to the plane,
+/// towards it.
+#[derive(Component, Reflect, Default, Debug)]
+pub struct PlanarGravity {
+    pub normal: Vec3,
+
+    pub gravity_strength: f32,
+}
+
+impl GravitySource for PlanarGravity {
+    /// Fg = m * g
+    fn calculate_force(&self, _position: Vec3, _other_position: Vec3, mass: f32) -> Vec3 {
+        let gravity_vector = self.normal.normalize() * self.gravity_strength * mass;
+
+        gravity_vector
+    }
+}
+
+// TODO: We'll have to hold off until bevy 0.11
+// pub struct CurvedGravity {
+//     curve: QuadraticBezier3,
+// }
+
+// This function gets all rigid bodies currently in a collision with a sensor. If that sensor is
+// has a GravitySource component, then it calculates the force due to that gravity source and
+// applies it to the rigid body.
+fn update_gravity(
+    mut rigid_body_query: Query<
+        (RigidBodyQuery, &mut ExternalForce, &CollidingEntities),
+        Without<Sensor>,
+    >,
+    gravity_source_query: Query<(&dyn GravitySource, &Position), With<Sensor>>,
+) {
+    for (rb_item, mut external_force, colliding_entities) in rigid_body_query.iter_mut() {
+        if !rb_item.rb.is_dynamic() {
+            continue;
+        }
+
+        let mut total_force = Vec3::ZERO;
+
+        for colliding_entity in colliding_entities.0.iter() {
+            if let Ok((gravity_sources, position)) = gravity_source_query.get(*colliding_entity) {
+                for gravity_source in gravity_sources {
+                    let force = gravity_source.calculate_force(
+                        position.0,
+                        rb_item.position.0,
+                        rb_item.mass.0,
+                    );
+
+                    total_force += force;
+                }
+            }
+        }
+
+        external_force.set_force(total_force);
+    }
+}
+use bevy::prelude::*;
+
+use super::app_state_machine::AppTransitionEvent;
+
+pub struct NavigationPlugin;
+
+impl Plugin for NavigationPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, back_button);
+    }
+}
+
+#[derive(Component)]
+pub struct BackButton;
+
+pub fn back_button(
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<Button>, With<BackButton>),
+    >,
+    mut transition_writer: EventWriter<AppTransitionEvent>,
+) {
+    for interaction in &mut interaction_query {
+        // check if interaction is clicked
+        if *interaction != Interaction::Pressed {
+            continue;
+        };
+
+        transition_writer.send(AppTransitionEvent::GoBack);
+    }
+}
+use bevy::{
+    gltf::{Gltf, GltfMesh},
+    prelude::*,
+};
+use bevy_xpbd_3d::prelude::Collider;
+
+/// Generic system that takes a component as a parameter, and will despawn all entities with that component
+pub fn despawn_components<T: Component>(
+    to_despawn: Query<Entity, With<T>>,
+    mut commands: Commands,
+) {
+    for entity in &to_despawn {
+        commands.entity(entity).despawn_recursive();
+    }
+}
+
+pub fn collider_from_gltf(
+    gltf_handle: Handle<Gltf>,
+    gltf_assets: &Res<Assets<Gltf>>,
+    gltf_meshes: &Res<Assets<GltfMesh>>,
+    meshes: &ResMut<Assets<Mesh>>,
+) -> (Handle<Scene>, Collider) {
+    let gltf = gltf_assets.get(&gltf_handle).unwrap();
+    let scene = gltf.scenes.first().unwrap().clone();
+    let gltf_mesh_handle = gltf.meshes.first().unwrap().clone();
+    let gltf_mesh = gltf_meshes.get(&gltf_mesh_handle).unwrap();
+    let mesh_handle = gltf_mesh.primitives.first().unwrap().mesh.clone();
+    let mesh = meshes.get(&mesh_handle).unwrap();
+
+    (scene, Collider::trimesh_from_bevy_mesh(mesh).unwrap())
+}
+use std::time::Duration;
+
+use app::AppPlugin;
+use bevy::{asset::ChangeWatcher, prelude::*};
+
+mod app;
+mod assets;
+mod saving;
+mod utility;
+
+// TODO: For reactive UI, we shouldn't rely on these.
+const WINDOW_WIDTH: f32 = 800.0;
+const WINDOW_HEIGHT: f32 = 600.0;
+
+fn main() {
+    App::new()
+        .add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Cosmic Junkyard".to_string(), // ToDo
+                        resolution: (WINDOW_WIDTH, WINDOW_HEIGHT).into(),
+                        canvas: Some("#bevy".to_owned()),
+                        position: WindowPosition::At((0, 0).into()),
+                        ..default()
+                    }),
+                    ..default()
+                })
+                .set(AssetPlugin {
+                    // This tells the AssetServer to watch for changes to assets.
+                    // It enables our scenes to automatically reload in game when we modify their files.
+                    watch_for_changes: Some(
+                        ChangeWatcher::with_delay(Duration::from_millis(50)).unwrap(),
+                    ),
+                    ..default()
+                }),
+        )
+        .add_plugins(AppPlugin)
+        .run();
+}
+#![allow(dead_code)]
+use bevy::asset::AssetServer;
+use bevy::prelude::AudioSource;
+use bevy::prelude::{Handle, Resource};
+use bevy_asset_loader::prelude::*;
+
+#[derive(AssetCollection, Resource)]
+pub struct SoundCollection {
+    #[asset(path = "sounds/amazing_1.mp3")]
+    pub amazing_1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/amazing_2.mp3")]
+    pub amazing_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/blackhole.mp3")]
+    pub blackhole: Handle<AudioSource>,
+
+    #[asset(path = "sounds/boingmachine.mp3")]
+    pub boingmachine: Handle<AudioSource>,
+
+    #[asset(path = "sounds/bomb.mp3")]
+    pub bomb: Handle<AudioSource>,
+
+    #[asset(path = "sounds/bonus.mp3")]
+    pub bonus: Handle<AudioSource>,
+
+    #[asset(path = "sounds/build1.mp3")]
+    pub build1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/build2.mp3")]
+    pub build2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/build3.mp3")]
+    pub build3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/build4.mp3")]
+    pub build4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/build5.mp3")]
+    pub build5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/build6.mp3")]
+    pub build6: Handle<AudioSource>,
+
+    #[asset(path = "sounds/build7.mp3")]
+    pub build7: Handle<AudioSource>,
+
+    #[asset(path = "sounds/build8.mp3")]
+    pub build8: Handle<AudioSource>,
+
+    #[asset(path = "sounds/build9.mp3")]
+    pub build9: Handle<AudioSource>,
+
+    #[asset(path = "sounds/build10.mp3")]
+    pub build10: Handle<AudioSource>,
+
+    #[asset(path = "sounds/build11.mp3")]
+    pub build11: Handle<AudioSource>,
+
+    #[asset(path = "sounds/buildsp1.mp3")]
+    pub buildsp1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/buildsp2.mp3")]
+    pub buildsp2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/buildsp3.mp3")]
+    pub buildsp3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/buildsp4.mp3")]
+    pub buildsp4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/buildsp5.mp3")]
+    pub buildsp5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/buildsp6.mp3")]
+    pub buildsp6: Handle<AudioSource>,
+
+    #[asset(path = "sounds/comfused.mp3")]
+    pub comfused: Handle<AudioSource>,
+
+    #[asset(path = "sounds/comfusedrobot.mp3")]
+    pub comfusedrobot: Handle<AudioSource>,
+
+    #[asset(path = "sounds/comfusedrobot2.mp3")]
+    pub comfusedrobot2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/comfusedrobot3.mp3")]
+    pub comfusedrobot3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/comfusedrobot4.mp3")]
+    pub comfusedrobot4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/comfusedrobot5.mp3")]
+    pub comfusedrobot5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/comfusedrobot6.mp3")]
+    pub comfusedrobot6: Handle<AudioSource>,
+
+    #[asset(path = "sounds/congs.mp3")]
+    pub congs: Handle<AudioSource>,
+
+    #[asset(path = "sounds/dangerous.mp3")]
+    pub dangerous: Handle<AudioSource>,
+
+    #[asset(path = "sounds/dangerous_2.mp3")]
+    pub dangerous_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/dangerous_3.mp3")]
+    pub dangerous_3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/dangerous_4.mp3")]
+    pub dangerous_4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/dangerous_5.mp3")]
+    pub dangerous_5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/dangerous_6.mp3")]
+    pub dangerous_6: Handle<AudioSource>,
+
+    #[asset(path = "sounds/dangerous_7.mp3")]
+    pub dangerous_7: Handle<AudioSource>,
+
+    #[asset(path = "sounds/dangerous_8.mp3")]
+    pub dangerous_8: Handle<AudioSource>,
+
+    #[asset(path = "sounds/dangerous_9.mp3")]
+    pub dangerous_9: Handle<AudioSource>,
+
+    #[asset(path = "sounds/deadmyforce.mp3")]
+    pub deadmyforce: Handle<AudioSource>,
+
+    #[asset(path = "sounds/destinyscoming.mp3")]
+    pub destinyscoming: Handle<AudioSource>,
+
+    #[asset(path = "sounds/destroyed_stones.mp3")]
+    pub destroyed_stones: Handle<AudioSource>,
+
+    #[asset(path = "sounds/destroyer_1.mp3")]
+    pub destroyer_1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/destroyer_2.mp3")]
+    pub destroyer_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/digitaldiamond.mp3")]
+    pub digitaldiamond: Handle<AudioSource>,
+
+    #[asset(path = "sounds/digitalrolling.mp3")]
+    pub digitalrolling: Handle<AudioSource>,
+
+    #[asset(path = "sounds/digitalsaw.mp3")]
+    pub digitalsaw: Handle<AudioSource>,
+
+    #[asset(path = "sounds/digitsaw2.mp3")]
+    pub digitsaw2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/energy_upload_loop.mp3")]
+    pub energy_upload_loop: Handle<AudioSource>,
+
+    #[asset(path = "sounds/error.mp3")]
+    pub error: Handle<AudioSource>,
+
+    #[asset(path = "sounds/evil_robot.mp3")]
+    pub evil_robot: Handle<AudioSource>,
+
+    #[asset(path = "sounds/evil_robot2.mp3")]
+    pub evil_robot2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/exp_1.mp3")]
+    pub exp_1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/exp_2.mp3")]
+    pub exp_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/evil_robot3.mp3")]
+    pub evil_robot3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/factory.mp3")]
+    pub factory: Handle<AudioSource>,
+
+    #[asset(path = "sounds/failed.mp3")]
+    pub failed: Handle<AudioSource>,
+
+    #[asset(path = "sounds/fantasy.mp3")]
+    pub fantasy: Handle<AudioSource>,
+
+    #[asset(path = "sounds/fantasy3.mp3")]
+    pub fantasy3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/fantasy4.mp3")]
+    pub fantasy4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/fatal.mp3")]
+    pub fatal: Handle<AudioSource>,
+
+    #[asset(path = "sounds/flame.mp3")]
+    pub flame: Handle<AudioSource>,
+
+    #[asset(path = "sounds/flame_2.mp3")]
+    pub flame_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/flame_3.mp3")]
+    pub flame_3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/flamestart.mp3")]
+    pub flamestart: Handle<AudioSource>,
+
+    #[asset(path = "sounds/forcedead.mp3")]
+    pub forcedead: Handle<AudioSource>,
+
+    #[asset(path = "sounds/forcedead3.mp3")]
+    pub forcedead3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/frog.mp3")]
+    pub frog: Handle<AudioSource>,
+
+    #[asset(path = "sounds/further.mp3")]
+    pub further: Handle<AudioSource>,
+
+    #[asset(path = "sounds/furtherlouder.mp3")]
+    pub furtherlouder: Handle<AudioSource>,
+
+    #[asset(path = "sounds/gameover_loud.mp3")]
+    pub gameover_loud: Handle<AudioSource>,
+
+    #[asset(path = "sounds/gmentert_loud.mp3")]
+    pub gmentert_loud: Handle<AudioSource>,
+
+    #[asset(path = "sounds/gum.mp3")]
+    pub gum: Handle<AudioSource>,
+
+    #[asset(path = "sounds/hanging.mp3")]
+    pub hanging: Handle<AudioSource>,
+
+    #[asset(path = "sounds/highspace.mp3")]
+    pub highspace: Handle<AudioSource>,
+
+    #[asset(path = "sounds/holy_moment.mp3")]
+    pub holy_moment: Handle<AudioSource>,
+
+    #[asset(path = "sounds/iamnotufo.mp3")]
+    pub iamnotufo: Handle<AudioSource>,
+
+    #[asset(path = "sounds/invicible.mp3")]
+    pub invicible: Handle<AudioSource>,
+
+    #[asset(path = "sounds/laser.mp3")]
+    pub laser: Handle<AudioSource>,
+
+    #[asset(path = "sounds/laser2.mp3")]
+    pub laser2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/laser3.mp3")]
+    pub laser3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/laser34.mp3")]
+    pub laser34: Handle<AudioSource>,
+
+    #[asset(path = "sounds/laser_interceptor.mp3")]
+    pub laser_interceptor: Handle<AudioSource>,
+
+    #[asset(path = "sounds/laser_interceptor_2.mp3")]
+    pub laser_interceptor_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/laserdot.mp3")]
+    pub laserdot: Handle<AudioSource>,
+
+    #[asset(path = "sounds/laserexp2.mp3")]
+    pub laserexp2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/laserexp_loud.mp3")]
+    pub laserexp_loud: Handle<AudioSource>,
+
+    #[asset(path = "sounds/lowR.mp3")]
+    pub low_r: Handle<AudioSource>,
+
+    #[asset(path = "sounds/lowR2.mp3")]
+    pub low_r2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/lowR3.mp3")]
+    pub low_r3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/lowR4.mp3")]
+    pub low_r4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/lowbattery.mp3")]
+    pub lowbattery: Handle<AudioSource>,
+
+    #[asset(path = "sounds/magic.mp3")]
+    pub magic: Handle<AudioSource>,
+
+    #[asset(path = "sounds/magic_2.mp3")]
+    pub magic_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/magic_3.mp3")]
+    pub magic_3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/magic_4.mp3")]
+    pub magic_4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/message2.mp3")]
+    pub message2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/message3.mp3")]
+    pub message3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/message_loud.mp3")]
+    pub message_loud: Handle<AudioSource>,
+
+    #[asset(path = "sounds/moment2.mp3")]
+    pub moment2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monster_1.mp3")]
+    pub monster_1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monster_2.mp3")]
+    pub monster_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monster_3.mp3")]
+    pub monster_3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monster_4.mp3")]
+    pub monster_4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monster_5.mp3")]
+    pub monster_5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monster_6.mp3")]
+    pub monster_6: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monster_7.mp3")]
+    pub monster_7: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monsterheart.mp3")]
+    pub monsterheart: Handle<AudioSource>,
+
+    #[asset(path = "sounds/monsterheart2.mp3")]
+    pub monsterheart2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/moreexplosion.mp3")]
+    pub moreexplosion: Handle<AudioSource>,
+
+    #[asset(path = "sounds/mystic.mp3")]
+    pub mystic: Handle<AudioSource>,
+
+    #[asset(path = "sounds/mystic2.mp3")]
+    pub mystic2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/mystic3.mp3")]
+    pub mystic3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/nature.mp3")]
+    pub nature: Handle<AudioSource>,
+
+    #[asset(path = "sounds/nature2.mp3")]
+    pub nature2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/nature3.mp3")]
+    pub nature3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/nature4.mp3")]
+    pub nature4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/nature5.mp3")]
+    pub nature5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/nightmare.mp3")]
+    pub nightmare: Handle<AudioSource>,
+
+    #[asset(path = "sounds/poisongas.mp3")]
+    pub poisongas: Handle<AudioSource>,
+
+    #[asset(path = "sounds/proton.mp3")]
+    pub proton: Handle<AudioSource>,
+
+    #[asset(path = "sounds/proton2.mp3")]
+    pub proton2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/proton3.mp3")]
+    pub proton3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/proton4.mp3")]
+    pub proton4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/proton5.mp3")]
+    pub proton5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_dead.mp3")]
+    pub psz_dead: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready.mp3")]
+    pub psz_ready: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready2.mp3")]
+    pub psz_ready2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready3.mp3")]
+    pub psz_ready3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready4.mp3")]
+    pub psz_ready4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready5.mp3")]
+    pub psz_ready5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready6.mp3")]
+    pub psz_ready6: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready7.mp3")]
+    pub psz_ready7: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_ready8.mp3")]
+    pub psz_ready8: Handle<AudioSource>,
+
+    #[asset(path = "sounds/psz_select.mp3")]
+    pub psz_select: Handle<AudioSource>,
+
+    #[asset(path = "sounds/radioactivity.mp3")]
+    pub radioactivity: Handle<AudioSource>,
+
+    #[asset(path = "sounds/recall.mp3")]
+    pub recall: Handle<AudioSource>,
+
+    #[asset(path = "sounds/reload_lasergun.mp3")]
+    pub reload_lasergun: Handle<AudioSource>,
+
+    #[asset(path = "sounds/roboticfactory.mp3")]
+    pub roboticfactory: Handle<AudioSource>,
+
+    #[asset(path = "sounds/roboticnoise.mp3")]
+    pub roboticnoise: Handle<AudioSource>,
+
+    #[asset(path = "sounds/roboticnoise2.mp3")]
+    pub roboticnoise2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/shake.mp3")]
+    pub shake: Handle<AudioSource>,
+
+    #[asset(path = "sounds/shake_electrical.mp3")]
+    pub shake_electrical: Handle<AudioSource>,
+
+    #[asset(path = "sounds/shipready.mp3")]
+    pub shipready: Handle<AudioSource>,
+
+    #[asset(path = "sounds/smf.mp3")]
+    pub smf: Handle<AudioSource>,
+
+    #[asset(path = "sounds/somedead.mp3")]
+    pub somedead: Handle<AudioSource>,
+
+    #[asset(path = "sounds/soul_fighter.mp3")]
+    pub soul_fighter: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spaceandtime 2.mp3")]
+    pub spaceandtime_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spaceandtime.mp3")]
+    pub spaceandtime: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spacebug.mp3")]
+    pub spacebug: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spacebug_1.mp3")]
+    pub spacebug_1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spacebug_2.mp3")]
+    pub spacebug_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spacebug_3.mp3")]
+    pub spacebug_3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spacebug_4.mp3")]
+    pub spacebug_4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spacebug_5.mp3")]
+    pub spacebug_5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spacesonicnoise.mp3")]
+    pub spacesonicnoise: Handle<AudioSource>,
+
+    #[asset(path = "sounds/sparkles.mp3")]
+    pub sparkles: Handle<AudioSource>,
+
+    #[asset(path = "sounds/sparkles1.mp3")]
+    pub sparkles1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/specialinterference.mp3")]
+    pub specialinterference: Handle<AudioSource>,
+
+    #[asset(path = "sounds/special_reload.mp3")]
+    pub special_reload: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_1.mp3")]
+    pub spike_1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_10.mp3")]
+    pub spike_10: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_11.mp3")]
+    pub spike_11: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_12.mp3")]
+    pub spike_12: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_2.mp3")]
+    pub spike_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_3.mp3")]
+    pub spike_3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_4.mp3")]
+    pub spike_4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_5.mp3")]
+    pub spike_5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_6.mp3")]
+    pub spike_6: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_7.mp3")]
+    pub spike_7: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_8.mp3")]
+    pub spike_8: Handle<AudioSource>,
+
+    #[asset(path = "sounds/spike_9.mp3")]
+    pub spike_9: Handle<AudioSource>,
+
+    #[asset(path = "sounds/splats.mp3")]
+    pub splats: Handle<AudioSource>,
+
+    #[asset(path = "sounds/splats_2.mp3")]
+    pub splats_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/steal_1.mp3")]
+    pub steal_1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/steal_2.mp3")]
+    pub steal_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/steal_3.mp3")]
+    pub steal_3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/teleportawy.mp3")]
+    pub teleportawy: Handle<AudioSource>,
+
+    #[asset(path = "sounds/themoment.mp3")]
+    pub themoment: Handle<AudioSource>,
+
+    #[asset(path = "sounds/timeisout.mp3")]
+    pub timeisout: Handle<AudioSource>,
+
+    #[asset(path = "sounds/timeisright.mp3")]
+    pub timeisright: Handle<AudioSource>,
+
+    #[asset(path = "sounds/timesisright2.mp3")]
+    pub timesisright2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/timewarp.mp3")]
+    pub timewarp: Handle<AudioSource>,
+
+    #[asset(path = "sounds/timewarp_2.mp3")]
+    pub timewarp_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/tpX.mp3")]
+    pub tp_x: Handle<AudioSource>,
+
+    #[asset(path = "sounds/tunnel_destroying.mp3")]
+    pub tunnel_destroying: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufo5.mp3")]
+    pub ufo5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufodead.mp3")]
+    pub ufodead: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufodead2.mp3")]
+    pub ufodead2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufodead3.mp3")]
+    pub ufodead3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufolouder.mp3")]
+    pub ufolouder: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufosignal.mp3")]
+    pub ufosignal: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufosignal2.mp3")]
+    pub ufosignal2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/ufosignal3.mp3")]
+    pub ufosignal3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/unitready.mp3")]
+    pub unitready: Handle<AudioSource>,
+
+    #[asset(path = "sounds/unitready2.mp3")]
+    pub unitready2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/unitready3.mp3")]
+    pub unitready3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/whatwasthis.mp3")]
+    pub whatwasthis: Handle<AudioSource>,
+
+    #[asset(path = "sounds/whereisthepoint.mp3")]
+    pub whereisthepoint: Handle<AudioSource>,
+
+    #[asset(path = "sounds/whyamiarobot.mp3")]
+    pub whyamiarobot: Handle<AudioSource>,
+
+    #[asset(path = "sounds/whyamiarobot2.mp3")]
+    pub whyamiarobot2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/whyamiarobot3.mp3")]
+    pub whyamiarobot3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/whyamiarobot4.mp3")]
+    pub whyamiarobot4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/whyamiarobot5.mp3")]
+    pub whyamiarobot5: Handle<AudioSource>,
+
+    #[asset(path = "sounds/win_loud.mp3")]
+    pub win_loud: Handle<AudioSource>,
+
+    #[asset(path = "sounds/wonder_1.mp3")]
+    pub wonder_1: Handle<AudioSource>,
+
+    #[asset(path = "sounds/wonder_2.mp3")]
+    pub wonder_2: Handle<AudioSource>,
+
+    #[asset(path = "sounds/wonder_3.mp3")]
+    pub wonder_3: Handle<AudioSource>,
+
+    #[asset(path = "sounds/wonder_4.mp3")]
+    pub wonder_4: Handle<AudioSource>,
+
+    #[asset(path = "sounds/wonder_5.mp3")]
+    pub wonder_5: Handle<AudioSource>,
+}
+use bevy::asset::AssetServer;
+use bevy::prelude::Image;
+use bevy::prelude::{Handle, Resource};
+use bevy_asset_loader::prelude::*;
+
+#[derive(AssetCollection, Resource)]
+pub struct BackgroundCollection {
+    #[asset(path = "backgrounds/Blue_Nebula_01-1024x1024.png")]
+    pub blue_nebula_1: Handle<Image>,
+
+    #[asset(path = "backgrounds/Blue_Nebula_02-1024x1024.png")]
+    pub blue_nebula_2: Handle<Image>,
+
+    #[asset(path = "backgrounds/Blue_Nebula_03-1024x1024.png")]
+    pub blue_nebula_3: Handle<Image>,
+
+    #[asset(path = "backgrounds/Blue_Nebula_04-1024x1024.png")]
+    pub blue_nebula_4: Handle<Image>,
+
+    #[asset(path = "backgrounds/Blue_Nebula_05-1024x1024.png")]
+    pub blue_nebula_5: Handle<Image>,
+
+    #[asset(path = "backgrounds/Blue_Nebula_06-1024x1024.png")]
+    pub blue_nebula_6: Handle<Image>,
+
+    #[asset(path = "backgrounds/Blue_Nebula_07-1024x1024.png")]
+    pub blue_nebula_7: Handle<Image>,
+
+    #[asset(path = "backgrounds/Blue_Nebula_08-1024x1024.png")]
+    pub blue_nebula_8: Handle<Image>,
+
+    #[asset(path = "backgrounds/Green_Nebula_01-1024x1024.png")]
+    pub green_nebula_1: Handle<Image>,
+
+    #[asset(path = "backgrounds/Green_Nebula_02-1024x1024.png")]
+    pub green_nebula_2: Handle<Image>,
+
+    #[asset(path = "backgrounds/Green_Nebula_03-1024x1024.png")]
+    pub green_nebula_3: Handle<Image>,
+
+    #[asset(path = "backgrounds/Green_Nebula_04-1024x1024.png")]
+    pub green_nebula_4: Handle<Image>,
+
+    #[asset(path = "backgrounds/Green_Nebula_05-1024x1024.png")]
+    pub green_nebula_5: Handle<Image>,
+
+    #[asset(path = "backgrounds/Green_Nebula_06-1024x1024.png")]
+    pub green_nebula_6: Handle<Image>,
+
+    #[asset(path = "backgrounds/Green_Nebula_07-1024x1024.png")]
+    pub green_nebula_7: Handle<Image>,
+
+    #[asset(path = "backgrounds/Green_Nebula_08-1024x1024.png")]
+    pub green_nebula_8: Handle<Image>,
+
+    #[asset(path = "backgrounds/Purple_Nebula_01-1024x1024.png")]
+    pub purple_nebula_1: Handle<Image>,
+
+    #[asset(path = "backgrounds/Purple_Nebula_02-1024x1024.png")]
+    pub purple_nebula_2: Handle<Image>,
+
+    #[asset(path = "backgrounds/Purple_Nebula_03-1024x1024.png")]
+    pub purple_nebula_3: Handle<Image>,
+
+    #[asset(path = "backgrounds/Purple_Nebula_04-1024x1024.png")]
+    pub purple_nebula_4: Handle<Image>,
+
+    #[asset(path = "backgrounds/Purple_Nebula_05-1024x1024.png")]
+    pub purple_nebula_5: Handle<Image>,
+
+    #[asset(path = "backgrounds/Purple_Nebula_06-1024x1024.png")]
+    pub purple_nebula_6: Handle<Image>,
+
+    #[asset(path = "backgrounds/Purple_Nebula_07-1024x1024.png")]
+    pub purple_nebula_7: Handle<Image>,
+
+    #[asset(path = "backgrounds/Purple_Nebula_08-1024x1024.png")]
+    pub purple_nebula_8: Handle<Image>,
+
+    #[asset(path = "backgrounds/Starfield_01-1024x1024.png")]
+    pub starfield_1: Handle<Image>,
+
+    #[asset(path = "backgrounds/Starfield_02-1024x1024.png")]
+    pub starfield_2: Handle<Image>,
+
+    #[asset(path = "backgrounds/Starfield_03-1024x1024.png")]
+    pub starfield_3: Handle<Image>,
+
+    #[asset(path = "backgrounds/Starfield_04-1024x1024.png")]
+    pub starfield_4: Handle<Image>,
+
+    #[asset(path = "backgrounds/Starfield_05-1024x1024.png")]
+    pub starfield_5: Handle<Image>,
+
+    #[asset(path = "backgrounds/Starfield_06-1024x1024.png")]
+    pub starfield_6: Handle<Image>,
+
+    #[asset(path = "backgrounds/Starfield_07-1024x1024.png")]
+    pub starfield_7: Handle<Image>,
+
+    #[asset(path = "backgrounds/Starfield_08-1024x1024.png")]
+    pub starfield_8: Handle<Image>,
+}
+#![allow(dead_code)]
+use bevy::asset::AssetServer;
+use bevy::{
+    prelude::{Handle, Resource},
+    scene::Scene,
+};
+use bevy_asset_loader::prelude::*;
+use strum_macros::EnumIter;
+
+#[derive(Debug, Copy, Clone, EnumIter)]
+pub enum ItemType {
+    Bullets,
+    Crate,
+    Health,
+    Jar,
+    KeyCarrd,
+    Sphere,
+    Thunder,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct ItemCollection {
+    #[asset(path = "models/items/Pickup_Bullets.gltf#Scene0")]
+    pub bullets: Handle<Scene>,
+
+    #[asset(path = "models/items/Pickup_Crate.gltf#Scene0")]
+    pub crate_: Handle<Scene>,
+
+    #[asset(path = "models/items/Pickup_Health.gltf#Scene0")]
+    pub health: Handle<Scene>,
+
+    #[asset(path = "models/items/Pickup_Jar.gltf#Scene0")]
+    pub jar: Handle<Scene>,
+
+    #[asset(path = "models/items/Pickup_KeyCard.gltf#Scene0")]
+    pub key_card: Handle<Scene>,
+
+    #[asset(path = "models/items/Pickup_Sphere.gltf#Scene0")]
+    pub sphere: Handle<Scene>,
+
+    #[asset(path = "models/items/Pickup_Thunder.gltf#Scene0")]
+    pub thunder: Handle<Scene>,
+}
+
+impl ItemType {
+    pub fn model_from(&self, collection: &ItemCollection) -> Handle<Scene> {
+        match self {
+            ItemType::Bullets => collection.bullets.clone(),
+            ItemType::Crate => collection.crate_.clone(),
+            ItemType::Health => collection.health.clone(),
+            ItemType::Jar => collection.jar.clone(),
+            ItemType::KeyCarrd => collection.key_card.clone(),
+            ItemType::Sphere => collection.sphere.clone(),
+            ItemType::Thunder => collection.thunder.clone(),
+        }
+    }
+}
+#![allow(dead_code)]
+use bevy::asset::AssetServer;
+use bevy::{
+    prelude::{Handle, Resource},
+    scene::Scene,
+};
+use bevy_asset_loader::prelude::*;
+use strum_macros::EnumIter;
+
+#[derive(Debug, Copy, Clone, EnumIter)]
+pub enum AstronautType {
+    BarbaraTheBee,
+    FernandoTheFlamingo,
+    FinnTheFrog,
+    RaeTheRedPanda,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct AstronautCollection {
+    #[asset(path = "models/characters/Astronaut_BarbaraTheBee.gltf#Scene0")]
+    pub barbara_the_bee: Handle<Scene>,
+
+    #[asset(path = "models/characters/Astronaut_FernandoTheFlamingo.gltf#Scene0")]
+    pub fernando_the_flamingo: Handle<Scene>,
+
+    #[asset(path = "models/characters/Astronaut_FinnTheFrog.gltf#Scene0")]
+    pub finn_the_frog: Handle<Scene>,
+
+    #[asset(path = "models/characters/Astronaut_RaeTheRedPanda.gltf#Scene0")]
+    pub rae_the_red_panda: Handle<Scene>,
+}
+
+impl AstronautType {
+    /// Gets the corresponding coral model for the given coral type
+    pub fn model_from(&self, collection: &AstronautCollection) -> Handle<Scene> {
+        match self {
+            AstronautType::BarbaraTheBee => collection.barbara_the_bee.clone(),
+            AstronautType::FernandoTheFlamingo => collection.fernando_the_flamingo.clone(),
+            AstronautType::FinnTheFrog => collection.finn_the_frog.clone(),
+            AstronautType::RaeTheRedPanda => collection.rae_the_red_panda.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, EnumIter)]
+pub enum EnemyType {
+    ExtraSmall,
+    Flying,
+    Large,
+    Small,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct EnemyCollection {
+    #[asset(path = "models/characters/Enemy_ExtraSmall.gltf#Scene0")]
+    pub extra_small: Handle<Scene>,
+
+    #[asset(path = "models/characters/Enemy_Flying.gltf#Scene0")]
+    pub flying: Handle<Scene>,
+
+    #[asset(path = "models/characters/Enemy_Large.gltf#Scene0")]
+    pub large: Handle<Scene>,
+
+    #[asset(path = "models/characters/Enemy_Small.gltf#Scene0")]
+    pub small: Handle<Scene>,
+}
+
+impl EnemyType {
+    /// Gets the corresponding coral model for the given coral type
+    pub fn model_from(&self, collection: &EnemyCollection) -> Handle<Scene> {
+        match self {
+            EnemyType::ExtraSmall => collection.extra_small.clone(),
+            EnemyType::Flying => collection.flying.clone(),
+            EnemyType::Large => collection.large.clone(),
+            EnemyType::Small => collection.small.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, EnumIter)]
+pub enum MechType {
+    BarbaraTheBee,
+    FernandoTheFlamingo,
+    FinnTheFrog,
+    RaeTheRedPanda,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct MechCollection {
+    #[asset(path = "models/characters/Mech_BarbaraTheBee.gltf#Scene0")]
+    pub barbara_the_bee: Handle<Scene>,
+
+    #[asset(path = "models/characters/Mech_FernandoTheFlamingo.gltf#Scene0")]
+    pub fernando_the_flamingo: Handle<Scene>,
+
+    #[asset(path = "models/characters/Mech_FinnTheFrog.gltf#Scene0")]
+    pub finn_the_frog: Handle<Scene>,
+
+    #[asset(path = "models/characters/Mech_RaeTheRedPanda.gltf#Scene0")]
+    pub rae_the_red_panda: Handle<Scene>,
+}
+
+impl MechType {
+    /// Gets the corresponding coral model for the given coral type
+    pub fn model_from(&self, collection: &MechCollection) -> Handle<Scene> {
+        match self {
+            MechType::BarbaraTheBee => collection.barbara_the_bee.clone(),
+            MechType::FernandoTheFlamingo => collection.fernando_the_flamingo.clone(),
+            MechType::FinnTheFrog => collection.finn_the_frog.clone(),
+            MechType::RaeTheRedPanda => collection.rae_the_red_panda.clone(),
+        }
+    }
+}
+use bevy::asset::AssetServer;
+use bevy::prelude::{Handle, Resource};
+use bevy::text::Font;
+use bevy_asset_loader::prelude::*;
+
+#[derive(AssetCollection, Resource)]
+pub struct FontCollection {
+    #[asset(path = "fonts/Comfortaa-Bold.ttf")]
+    pub comfortaa_bold: Handle<Font>,
+
+    #[asset(path = "fonts/Comfortaa-Light.ttf")]
+    pub comfortaa_light: Handle<Font>,
+
+    #[asset(path = "fonts/Comfortaa-Medium.ttf")]
+    pub comfortaa_medium: Handle<Font>,
+
+    #[asset(path = "fonts/Comfortaa-Regular.ttf")]
+    pub comfortaa_regular: Handle<Font>,
+
+    #[asset(path = "fonts/Comfortaa-SemiBold.ttf")]
+    pub comfortaa_semibold: Handle<Font>,
+}
+#![allow(dead_code)]
+use bevy::asset::AssetServer;
+use bevy::prelude::AudioSource;
+use bevy::prelude::{Handle, Resource};
+use bevy_asset_loader::prelude::*;
+
+#[derive(AssetCollection, Resource)]
+pub struct UiSoundCollection {
+    #[asset(path = "ui_sounds/Bleep_01.ogg")]
+    pub bleep_01: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Bleep_02.ogg")]
+    pub bleep_02: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Bleep_03.ogg")]
+    pub bleep_03: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Bleep_04.ogg")]
+    pub bleep_04: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Bleep_05.ogg")]
+    pub bleep_05: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Bleep_06.ogg")]
+    pub bleep_06: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Bleep_07.ogg")]
+    pub bleep_07: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Click_01.ogg")]
+    pub click_01: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Click_02.ogg")]
+    pub click_02: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Click_03.ogg")]
+    pub click_03: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Click_04.ogg")]
+    pub click_04: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Complete_01.ogg")]
+    pub complete_01: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Complete_02.ogg")]
+    pub complete_02: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Confirm_01.ogg")]
+    pub confirm_01: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Confirm_02.ogg")]
+    pub confirm_02: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Confirm_03.ogg")]
+    pub confirm_03: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Confirm_04.ogg")]
+    pub confirm_04: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Confirm_05.ogg")]
+    pub confirm_05: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Confirm_06.ogg")]
+    pub confirm_06: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Confirm_07.ogg")]
+    pub confirm_07: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Data_Point_01.ogg")]
+    pub data_point_01: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Data_Point_02.ogg")]
+    pub data_point_02: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Data_Point_04.ogg")]
+    pub data_point_04: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Data_Point_05.ogg")]
+    pub data_point_05: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Denied_01.ogg")]
+    pub denied_01: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Denied_02.ogg")]
+    pub denied_02: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Denied_03.ogg")]
+    pub denied_03: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Execute_01.ogg")]
+    pub execute_01: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Execute_02.ogg")]
+    pub execute_02: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Sequence_01.ogg")]
+    pub sequence_01: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Sequence_02.ogg")]
+    pub sequence_02: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Sequence_03.ogg")]
+    pub sequence_03: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Sequence_04.ogg")]
+    pub sequence_04: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Sequence_05.ogg")]
+    pub sequence_05: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Sequence_06.ogg")]
+    pub sequence_06: Handle<AudioSource>,
+
+    #[asset(path = "ui_sounds/Sequence_07.ogg")]
+    pub sequence_07: Handle<AudioSource>,
+}
+use bevy::asset::AssetServer;
+use bevy::prelude::Image;
+use bevy::prelude::{Handle, Resource};
+use bevy_asset_loader::prelude::*;
+
+#[derive(AssetCollection, Resource)]
+pub struct ImageCollection {
+    #[asset(path = "images/main_menu_aim.png")]
+    pub main_menu_aim: Handle<Image>,
+
+    #[asset(path = "images/target.png")]
+    pub target: Handle<Image>,
+}
+#![allow(dead_code)]
+use bevy::asset::AssetServer;
+use bevy::gltf::Gltf;
+use bevy::prelude::{Handle, Resource};
+use bevy::reflect::Reflect;
+use bevy_asset_loader::prelude::*;
+use strum_macros::EnumIter;
+
+#[derive(Debug, Copy, Clone, EnumIter)]
+pub enum BuildingType {
+    BaseLarge,
+    BuildingL,
+    GeodesicDome,
+    HouseCylinder,
+    HouseLong,
+    HouseOpen,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct BuildingCollection {
+    #[asset(path = "models/environment/Base_Large.gltf")]
+    pub base_large: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Building_L.gltf")]
+    pub building_l: Handle<Gltf>,
+
+    #[asset(path = "models/environment/GeodesicDome.gltf")]
+    pub geodesic_dome: Handle<Gltf>,
+
+    #[asset(path = "models/environment/House_Cylinder.gltf")]
+    pub house_cylinder: Handle<Gltf>,
+
+    #[asset(path = "models/environment/House_Long.gltf")]
+    pub house_long: Handle<Gltf>,
+
+    #[asset(path = "models/environment/House_Open.gltf")]
+    pub house_open: Handle<Gltf>,
+}
+
+impl BuildingType {
+    pub fn model_from(&self, collection: &BuildingCollection) -> Handle<Gltf> {
+        match self {
+            BuildingType::BaseLarge => collection.base_large.clone(),
+            BuildingType::BuildingL => collection.building_l.clone(),
+            BuildingType::GeodesicDome => collection.geodesic_dome.clone(),
+            BuildingType::HouseCylinder => collection.house_cylinder.clone(),
+            BuildingType::HouseLong => collection.house_long.clone(),
+            BuildingType::HouseOpen => collection.house_open.clone(),
+        }
+    }
+}
+
+pub enum StructureType {
+    Connector,
+    HouseSingleSupport,
+    HouseSingle,
+    HouseOpenBack,
+    MetalSupport,
+    Ramp,
+    RoofAntenna,
+    RoofOpening,
+    RoofRadar,
+    RoofVentL,
+    RoofVentR,
+    SolarPanelGround,
+    SolarPanelRoof,
+    SolarPanelStructure,
+    Stairs,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct StructureCollection {
+    #[asset(path = "models/environment/Connector.gltf")]
+    pub connector: Handle<Gltf>,
+
+    #[asset(path = "models/environment/House_Single_Support.gltf")]
+    pub house_single_support: Handle<Gltf>,
+
+    #[asset(path = "models/environment/House_Single.gltf")]
+    pub house_single: Handle<Gltf>,
+
+    #[asset(path = "models/environment/House_OpenBack.gltf")]
+    pub house_open_back: Handle<Gltf>,
+
+    #[asset(path = "models/environment/MetalSupport.gltf")]
+    pub metal_support: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Ramp.gltf")]
+    pub ramp: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Roof_Antenna.gltf")]
+    pub roof_antenna: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Roof_Opening.gltf")]
+    pub roof_opening: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Roof_Radar.gltf")]
+    pub roof_radar: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Roof_VentL.gltf")]
+    pub roof_vent_l: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Roof_VentR.gltf")]
+    pub roof_vent_r: Handle<Gltf>,
+
+    #[asset(path = "models/environment/SolarPanel_Ground.gltf")]
+    pub solar_panel_ground: Handle<Gltf>,
+
+    #[asset(path = "models/environment/SolarPanel_Roof.gltf")]
+    pub solar_panel_roof: Handle<Gltf>,
+
+    #[asset(path = "models/environment/SolarPanel_Structure.gltf")]
+    pub solar_panel_structure: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Stairs.gltf")]
+    pub stairs: Handle<Gltf>,
+}
+
+impl StructureType {
+    pub fn model_from(&self, collection: &StructureCollection) -> Handle<Gltf> {
+        match self {
+            StructureType::Connector => collection.connector.clone(),
+            StructureType::HouseSingleSupport => collection.house_single_support.clone(),
+            StructureType::HouseSingle => collection.house_single.clone(),
+            StructureType::HouseOpenBack => collection.house_open_back.clone(),
+            StructureType::MetalSupport => collection.metal_support.clone(),
+            StructureType::Ramp => collection.ramp.clone(),
+            StructureType::RoofAntenna => collection.roof_antenna.clone(),
+            StructureType::RoofOpening => collection.roof_opening.clone(),
+            StructureType::RoofRadar => collection.roof_radar.clone(),
+            StructureType::RoofVentL => collection.roof_vent_l.clone(),
+            StructureType::RoofVentR => collection.roof_vent_r.clone(),
+            StructureType::SolarPanelGround => collection.solar_panel_ground.clone(),
+            StructureType::SolarPanelRoof => collection.solar_panel_roof.clone(),
+            StructureType::SolarPanelStructure => collection.solar_panel_structure.clone(),
+            StructureType::Stairs => collection.stairs.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, EnumIter)]
+pub enum BushType {
+    Bush1,
+    Bush2,
+    Bush3,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct BushCollection {
+    #[asset(path = "models/environment/Bush_1.gltf")]
+    pub bush_1: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Bush_2.gltf")]
+    pub bush_2: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Bush_3.gltf")]
+    pub bush_3: Handle<Gltf>,
+}
+
+impl BushType {
+    pub fn model_from(&self, collection: &BushCollection) -> Handle<Gltf> {
+        match self {
+            BushType::Bush1 => collection.bush_1.clone(),
+            BushType::Bush2 => collection.bush_2.clone(),
+            BushType::Bush3 => collection.bush_3.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, EnumIter)]
+pub enum GrassType {
+    Grass1,
+    Grass2,
+    Grass3,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct GrassCollection {
+    #[asset(path = "models/environment/Grass_1.gltf")]
+    pub grass_1: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Grass_2.gltf")]
+    pub grass_2: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Grass_3.gltf")]
+    pub grass_3: Handle<Gltf>,
+}
+
+impl GrassType {
+    pub fn model_from(&self, collection: &GrassCollection) -> Handle<Gltf> {
+        match self {
+            GrassType::Grass1 => collection.grass_1.clone(),
+            GrassType::Grass2 => collection.grass_2.clone(),
+            GrassType::Grass3 => collection.grass_3.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, EnumIter)]
+pub enum PlantType {
+    Plant1,
+    Plant2,
+    Plant3,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct PlantCollection {
+    #[asset(path = "models/environment/Plant_1.gltf")]
+    pub plant_1: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Plant_2.gltf")]
+    pub plant_2: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Plant_3.gltf")]
+    pub plant_3: Handle<Gltf>,
+}
+
+impl PlantType {
+    pub fn model_from(&self, collection: &PlantCollection) -> Handle<Gltf> {
+        match self {
+            PlantType::Plant1 => collection.plant_1.clone(),
+            PlantType::Plant2 => collection.plant_2.clone(),
+            PlantType::Plant3 => collection.plant_3.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, EnumIter)]
+pub enum RockType {
+    Rock1,
+    Rock2,
+    Rock3,
+    Rock4,
+    RockLarge1,
+    RockLarge2,
+    RockLarge3,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct RockCollection {
+    #[asset(path = "models/environment/Rock_1.gltf")]
+    pub rock_1: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Rock_2.gltf")]
+    pub rock_2: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Rock_3.gltf")]
+    pub rock_3: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Rock_4.gltf")]
+    pub rock_4: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Rock_Large_1.gltf")]
+    pub rock_large_1: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Rock_Large_2.gltf")]
+    pub rock_large_2: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Rock_Large_3.gltf")]
+    pub rock_large_3: Handle<Gltf>,
+}
+
+impl RockType {
+    pub fn model_from(&self, collection: &RockCollection) -> Handle<Gltf> {
+        match self {
+            RockType::Rock1 => collection.rock_1.clone(),
+            RockType::Rock2 => collection.rock_2.clone(),
+            RockType::Rock3 => collection.rock_3.clone(),
+            RockType::Rock4 => collection.rock_4.clone(),
+            RockType::RockLarge1 => collection.rock_large_1.clone(),
+            RockType::RockLarge2 => collection.rock_large_2.clone(),
+            RockType::RockLarge3 => collection.rock_large_3.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Copy, Clone, EnumIter, Reflect)]
+pub enum PlanetType {
+    #[default]
+    Planet1,
+    Planet2,
+    Planet3,
+    Planet4,
+    Planet5,
+    Planet6,
+    Planet7,
+    Planet8,
+    Planet9,
+    Planet10,
+    Planet11,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct PlanetCollection {
+    #[asset(path = "models/environment/Planet_1.gltf")]
+    pub planet_1: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Planet_2.gltf")]
+    pub planet_2: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Planet_3.gltf")]
+    pub planet_3: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Planet_4.gltf")]
+    pub planet_4: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Planet_5.gltf")]
+    pub planet_5: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Planet_6.gltf")]
+    pub planet_6: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Planet_7.gltf")]
+    pub planet_7: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Planet_8.gltf")]
+    pub planet_8: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Planet_9.gltf")]
+    pub planet_9: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Planet_10.gltf")]
+    pub planet_10: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Planet_11.gltf")]
+    pub planet_11: Handle<Gltf>,
+}
+
+impl PlanetType {
+    pub fn model_from(&self, collection: &PlanetCollection) -> Handle<Gltf> {
+        match self {
+            PlanetType::Planet1 => collection.planet_1.clone(),
+            PlanetType::Planet2 => collection.planet_2.clone(),
+            PlanetType::Planet3 => collection.planet_3.clone(),
+            PlanetType::Planet4 => collection.planet_4.clone(),
+            PlanetType::Planet5 => collection.planet_5.clone(),
+            PlanetType::Planet6 => collection.planet_6.clone(),
+            PlanetType::Planet7 => collection.planet_7.clone(),
+            PlanetType::Planet8 => collection.planet_8.clone(),
+            PlanetType::Planet9 => collection.planet_9.clone(),
+            PlanetType::Planet10 => collection.planet_10.clone(),
+            PlanetType::Planet11 => collection.planet_11.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, EnumIter)]
+pub enum TreeType {
+    Blob1,
+    Blob2,
+    Blob3,
+    Floating1,
+    Floating2,
+    Floating3,
+    Lava1,
+    Lava2,
+    Lava3,
+    Light1,
+    Light2,
+    Spikes1,
+    Spikes2,
+    Spiral1,
+    Spiral2,
+    Spiral3,
+    Swirl1,
+    Swirl2,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct TreeCollection {
+    #[asset(path = "models/environment/Tree_Blob_1.gltf")]
+    pub blob_1: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Blob_2.gltf")]
+    pub blob_2: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Blob_3.gltf")]
+    pub blob_3: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Floating_1.gltf")]
+    pub floating_1: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Floating_2.gltf")]
+    pub floating_2: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Floating_3.gltf")]
+    pub floating_3: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Lava_1.gltf")]
+    pub lava_1: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Lava_2.gltf")]
+    pub lava_2: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Lava_3.gltf")]
+    pub lava_3: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Light_1.gltf")]
+    pub light_1: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Light_2.gltf")]
+    pub light_2: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Spikes_1.gltf")]
+    pub spikes_1: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Spikes_2.gltf")]
+    pub spikes_2: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Spiral_1.gltf")]
+    pub spiral_1: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Spiral_2.gltf")]
+    pub spiral_2: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Spiral_3.gltf")]
+    pub spiral_3: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Swirl_1.gltf")]
+    pub swirl_1: Handle<Gltf>,
+
+    #[asset(path = "models/environment/Tree_Swirl_2.gltf")]
+    pub swirl_2: Handle<Gltf>,
+}
+
+impl TreeType {
+    pub fn model_from(&self, collection: &TreeCollection) -> Handle<Gltf> {
+        match self {
+            TreeType::Blob1 => collection.blob_1.clone(),
+            TreeType::Blob2 => collection.blob_2.clone(),
+            TreeType::Blob3 => collection.blob_3.clone(),
+            TreeType::Floating1 => collection.floating_1.clone(),
+            TreeType::Floating2 => collection.floating_2.clone(),
+            TreeType::Floating3 => collection.floating_3.clone(),
+            TreeType::Lava1 => collection.lava_1.clone(),
+            TreeType::Lava2 => collection.lava_2.clone(),
+            TreeType::Lava3 => collection.lava_3.clone(),
+            TreeType::Light1 => collection.light_1.clone(),
+            TreeType::Light2 => collection.light_2.clone(),
+            TreeType::Spikes1 => collection.spikes_1.clone(),
+            TreeType::Spikes2 => collection.spikes_2.clone(),
+            TreeType::Spiral1 => collection.spiral_1.clone(),
+            TreeType::Spiral2 => collection.spiral_2.clone(),
+            TreeType::Spiral3 => collection.spiral_3.clone(),
+            TreeType::Swirl1 => collection.swirl_1.clone(),
+            TreeType::Swirl2 => collection.swirl_2.clone(),
+        }
+    }
+}
+#![allow(dead_code)]
+use bevy::asset::AssetServer;
+use bevy::{
+    prelude::{Handle, Resource},
+    scene::Scene,
+};
+use bevy_asset_loader::prelude::*;
+use strum_macros::EnumIter;
+
+#[derive(Debug, Copy, Clone, EnumIter)]
+pub enum VehicleType {
+    Rover1,
+    Rover2,
+    RoverRound,
+    SpacehipBarbaraTheBee,
+    SpacehipFernandoTheFlamingo,
+    SpacehipFinnTheFrog,
+    SpacehipRaeTheRedPanda,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct VehicleCollection {
+    #[asset(path = "models/vehicles/Rover_1.gltf#Scene0")]
+    pub rover_1: Handle<Scene>,
+
+    #[asset(path = "models/vehicles/Rover_2.gltf#Scene0")]
+    pub rover_2: Handle<Scene>,
+
+    #[asset(path = "models/vehicles/Rover_Round.gltf#Scene0")]
+    pub rover_round: Handle<Scene>,
+
+    #[asset(path = "models/vehicles/Spaceship_BarbaraTheBee.gltf#Scene0")]
+    pub spaceship_barbara_the_bee: Handle<Scene>,
+
+    #[asset(path = "models/vehicles/Spaceship_FernandoTheFlamingo.gltf#Scene0")]
+    pub spaceship_fernando_the_flamingo: Handle<Scene>,
+
+    #[asset(path = "models/vehicles/Spaceship_FinnTheFrog.gltf#Scene0")]
+    pub spaceship_finn_the_frog: Handle<Scene>,
+
+    #[asset(path = "models/vehicles/Spaceship_RaeTheRedPanda.gltf#Scene0")]
+    pub spaceship_rae_the_red_panda: Handle<Scene>,
+}
+
+impl VehicleType {
+    pub fn model_from(&self, collection: &VehicleCollection) -> Handle<Scene> {
+        match self {
+            VehicleType::Rover1 => collection.rover_1.clone(),
+            VehicleType::Rover2 => collection.rover_2.clone(),
+            VehicleType::RoverRound => collection.rover_round.clone(),
+            VehicleType::SpacehipBarbaraTheBee => collection.spaceship_barbara_the_bee.clone(),
+            VehicleType::SpacehipFernandoTheFlamingo => {
+                collection.spaceship_fernando_the_flamingo.clone()
+            }
+            VehicleType::SpacehipFinnTheFrog => collection.spaceship_finn_the_frog.clone(),
+            VehicleType::SpacehipRaeTheRedPanda => collection.spaceship_rae_the_red_panda.clone(),
+        }
+    }
+}
+#![allow(dead_code)]
+use bevy::asset::AssetServer;
+use bevy::prelude::AudioSource;
+use bevy::prelude::{Handle, Resource};
+use bevy_asset_loader::prelude::*;
+use strum_macros::EnumIter;
+
+#[derive(Debug, Copy, Clone, EnumIter)]
+pub enum MusicType {
+    IntoTheSpaceship,
+    SatelliteInterruption,
+    GoodbyeSweetAlien,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct MusicCollection {
+    #[asset(path = "music/1. Into The Spaceship.wav")]
+    pub into_the_spaceship: Handle<AudioSource>,
+
+    #[asset(path = "music/2. Satellite Interruption.wav")]
+    pub satellite_interruption: Handle<AudioSource>,
+
+    #[asset(path = "music/3. Goodbye Sweet Alien.wav")]
+    pub goodbye_sweet_alien: Handle<AudioSource>,
+}

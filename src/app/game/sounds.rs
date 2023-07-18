@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use bevy::{audio::Volume, prelude::*, time::Stopwatch};
 
-use crate::{app::AppState, assets::sounds::SoundCollection};
+use crate::assets::sounds::SoundCollection;
 
-use super::JunkCollisionEvent;
+use super::{game_state_machine::GameState, junk::JunkCollisionEvent};
 
 pub struct SoundsPlugin;
 
@@ -13,7 +13,7 @@ impl Plugin for SoundsPlugin {
         app.insert_resource(SoundCollisionStopWatch(Stopwatch::new()))
             .add_systems(
                 Update,
-                (junk_collisions,).run_if(in_state(AppState::InGameLevel)),
+                (junk_collisions,).run_if(in_state(GameState::Playing)),
             );
     }
 }

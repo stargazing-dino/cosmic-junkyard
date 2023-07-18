@@ -4,13 +4,12 @@ use bevy::{
     pbr::CascadeShadowConfigBuilder,
     prelude::*,
     render::camera::ScalingMode,
-    window::PrimaryWindow,
 };
 use bevy_asset_loader::prelude::*;
 use bevy_xpbd_3d::{
     prelude::{
         CoefficientCombine, Collider, ColliderMassProperties, ExternalForce, Friction, Inertia,
-        Mass, PhysicsPlugins, Position, RigidBody, Sensor,
+        Mass, PhysicsLoop, PhysicsPlugins, Position, RigidBody, Sensor,
     },
     resources::Gravity,
 };
@@ -24,13 +23,18 @@ use crate::{
 
 use self::{
     game_state_machine::{GameState, GameStateMachinePlugin},
-    gravity::PointGravity,
-    playing::PlayingPlugin,
+    graphics::GraphicsPlugin,
+    gravity::{GravityPlugin, GravitySourceBundle, PointGravity},
+    junk::{Junk, JunkPlugin},
+    sounds::SoundsPlugin,
 };
 
+mod bounds;
 mod game_state_machine;
+mod graphics;
 mod gravity;
-mod playing;
+mod junk;
+mod sounds;
 
 pub struct GamePlugin;
 
@@ -40,39 +44,23 @@ impl Plugin for GamePlugin {
             LoadingState::new(GameState::AssetLoading).continue_to_state(GameState::Playing),
         )
         .add_collection_to_loading_state::<_, PlanetCollection>(GameState::AssetLoading)
-        .add_plugins((
-            GameStateMachinePlugin,
-            PhysicsPlugins::default(),
-            PlayingPlugin,
-        ))
         .insert_resource(Gravity::ZERO)
-        .insert_resource(Bounds::default())
-        .insert_resource(AmbientLight {
-            color: Color::WHITE,
-            brightness: 1.0 / 5.0f32,
-        })
+        .add_plugins((
+            // BoundsPlugin,
+            PhysicsPlugins::default(),
+            JunkPlugin,
+            GraphicsPlugin,
+            GravityPlugin,
+            SoundsPlugin,
+            GameStateMachinePlugin,
+        ))
+        .add_systems(OnEnter(GameState::Paused), pause_physics)
         .add_systems(
             OnEnter(GameState::Playing),
-            (setup_graphics, setup_level_gen),
+            (setup_level_gen, resume_physics),
         );
     }
 }
-
-/// The bounds of the playable area
-#[derive(Resource, Default)]
-pub struct Bounds {
-    pub min: Vec2,
-
-    pub max: Vec2,
-}
-
-#[derive(Component, Reflect, Default, Debug)]
-#[reflect(Component)]
-pub struct Junk {}
-
-#[derive(Component, Reflect, Default, Debug)]
-#[reflect(Component)]
-pub struct Goal {}
 
 #[derive(Component, Reflect, Default, Debug, Clone)]
 #[reflect(Component)]
@@ -109,82 +97,6 @@ pub struct PlanetBundle {
     pub collider: Collider,
 
     pub collider_mass_properties: ColliderMassProperties,
-}
-
-#[derive(Bundle)]
-pub struct GravitySourceBundle {
-    // TODO:
-    // pub gravity_source: Box<dyn GravitySource>,
-    pub position: Position,
-
-    pub rigid_body: RigidBody,
-
-    pub collider: Collider,
-
-    pub sensor: Sensor,
-}
-
-fn setup_graphics(mut commands: Commands) {
-    // directional 'sun' light
-    commands.spawn(DirectionalLightBundle {
-        directional_light: DirectionalLight {
-            illuminance: 10000.0,
-            shadows_enabled: true,
-            ..default()
-        },
-        transform: Transform::from_xyz(0.0, 30.0, 0.01).looking_at(Vec3::ZERO, Vec3::Y),
-        // The default cascade config is designed to handle large scenes.
-        // As this example has a much smaller world, we can tighten the shadow
-        // bounds for better visual quality.
-        cascade_shadow_config: CascadeShadowConfigBuilder {
-            first_cascade_far_bound: 4.0,
-            maximum_distance: 10.0,
-            ..default()
-        }
-        .into(),
-        ..default()
-    });
-
-    commands.spawn(PointLightBundle {
-        transform: Transform::from_xyz(0.0, 30.0, -50.0).looking_at(Vec3::ZERO, Vec3::Y),
-        point_light: PointLight {
-            color: Color::hex("0a0a2c").unwrap(),
-            intensity: 100000.0,
-            shadows_enabled: true,
-            range: 100.0,
-            ..default()
-        },
-        ..default()
-    });
-
-    commands.spawn(PointLightBundle {
-        transform: Transform::from_xyz(30.0, 200.0, -20.0).looking_at(Vec3::ZERO, Vec3::Y),
-        point_light: PointLight {
-            color: Color::hex("ffddaa").unwrap(),
-            intensity: 100000.0,
-            shadows_enabled: true,
-            range: 100.0,
-            ..default()
-        },
-        ..default()
-    });
-
-    let camera_transform = Transform::from_xyz(0.0, 0.0, 30.0);
-
-    // Bevy is a right handed, Y-up system.
-    commands.spawn((
-        Camera3dBundle {
-            tonemapping: Tonemapping::TonyMcMapface,
-            projection: Projection::Orthographic(OrthographicProjection {
-                scale: 32.0,
-                scaling_mode: ScalingMode::FixedVertical(1.0),
-                ..default()
-            }),
-            transform: camera_transform,
-            ..default()
-        },
-        BloomSettings::default(),
-    ));
 }
 
 fn setup_level_gen(
@@ -265,7 +177,7 @@ fn setup_level_gen(
         PbrBundle {
             mesh: meshes.add(shape.into()),
             material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-            transform: Transform::from_xyz(0.0, 0.0, 0.0),
+            transform: Transform::from_xyz(14.0, 0.0, 0.0),
             ..default()
         },
         Collider::ball(1.0),
@@ -280,40 +192,10 @@ fn setup_level_gen(
     ));
 }
 
-/// This updates the bounds based off the camera's position and projection.
-/// If there is no camera, the bounds will be unchanged. We'd need to reconsider
-/// this in headless mode.
-fn update_bounds(
-    window: Query<&Window, With<PrimaryWindow>>,
-    camera_projection: Query<(&Transform, &Projection), With<Camera>>,
-    mut bounds: ResMut<Bounds>,
-) {
-    let (camera_transform, projection) = camera_projection.single();
-    let resolution = &window.single().resolution;
-    let camera_transform = camera_transform.translation;
-    let aspect_ratio = resolution.width() / resolution.height();
-    let (horizontal_view, vertical_view) =
-        if let Projection::Orthographic(orthographic) = projection {
-            let scale = orthographic.scale;
-            let (fixed_dim, other_dim) =
-                if let ScalingMode::FixedVertical(vertical) = orthographic.scaling_mode {
-                    ((vertical * aspect_ratio), vertical)
-                } else if let ScalingMode::FixedHorizontal(horizontal) = orthographic.scaling_mode {
-                    (horizontal, (horizontal / aspect_ratio))
-                } else {
-                    unimplemented!()
-                };
-            (fixed_dim * scale, other_dim * scale)
-        } else {
-            unimplemented!()
-        };
+fn pause_physics(mut physics_loop: ResMut<PhysicsLoop>) {
+    physics_loop.pause();
+}
 
-    bounds.min = Vec2::new(
-        camera_transform.x - horizontal_view / 2.0,
-        camera_transform.y - vertical_view / 2.0,
-    );
-    bounds.max = Vec2::new(
-        camera_transform.x + horizontal_view / 2.0,
-        camera_transform.y + vertical_view / 2.0,
-    );
+fn resume_physics(mut physics_loop: ResMut<PhysicsLoop>) {
+    physics_loop.resume();
 }

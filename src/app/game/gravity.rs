@@ -18,6 +18,19 @@ impl Plugin for GravityPlugin {
     }
 }
 
+#[derive(Bundle)]
+pub struct GravitySourceBundle {
+    // TODO:
+    // pub gravity_source: Box<dyn GravitySource>,
+    pub position: Position,
+
+    pub rigid_body: RigidBody,
+
+    pub collider: Collider,
+
+    pub sensor: Sensor,
+}
+
 #[bevy_trait_query::queryable]
 pub trait GravitySource {
     fn calculate_force(&self, position: Vec3, other_position: Vec3, mass: f32) -> Vec3;
@@ -71,10 +84,49 @@ impl GravitySource for PlanarGravity {
     }
 }
 
-// TODO: We'll have to hold off until bevy 0.11
-// pub struct CurvedGravity {
-//     curve: QuadraticBezier3,
-// }
+#[derive(Component)]
+pub struct CurvedGravity {
+    // curve: Bezier
+    cubic_generator: Box<dyn CubicGenerator<Vec3> + Send + Sync>,
+
+    gravity_strength: f32,
+}
+
+impl GravitySource for CurvedGravity {
+    fn calculate_force(&self, position: Vec3, _other_position: Vec3, mass: f32) -> Vec3 {
+        const MAX_ITER: usize = 10;
+        const EPSILON: f32 = 1e-6;
+        let curve = self.cubic_generator.to_curve();
+
+        // Newton's method to find the closest point on the curve.
+        let mut t = 0.5; // starting with the middle of the curve
+        for _ in 0..MAX_ITER {
+            let pos = curve.position(t);
+            let vel = curve.velocity(t);
+            let acc = curve.acceleration(t);
+
+            let diff = pos - position;
+            let diff_norm = diff.length();
+            if diff_norm < EPSILON {
+                // We're close enough
+                break;
+            }
+
+            let proj_vel = diff.dot(vel);
+            let proj_acc = diff.dot(acc);
+
+            let t_next = t - proj_vel / (proj_acc - proj_vel.powi(2) / diff_norm);
+
+            // Make sure t stays within [0, 1]
+            t = t_next.max(0.0).min(1.0);
+        }
+
+        let closest_point = curve.position(t);
+        let direction = (closest_point - position).normalize();
+
+        direction * self.gravity_strength * mass
+    }
+}
 
 // This function gets all rigid bodies currently in a collision with a sensor. If that sensor is
 // has a GravitySource component, then it calculates the force due to that gravity source and

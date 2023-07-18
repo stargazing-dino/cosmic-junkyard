@@ -10,11 +10,7 @@ impl Plugin for GameStateMachinePlugin {
             .add_event::<GameTransitionEvent>()
             .add_systems(
                 Update,
-                from_none_state, // .run_if(not(in_state(AppState::InGameLevel))),
-            )
-            .add_systems(
-                Update,
-                game_transition.run_if(in_state(AppState::InGameLevel)),
+                (game_transition, from_none_state).run_if(in_state(AppState::InGameLevel)),
             );
     }
 }
@@ -55,7 +51,7 @@ pub enum GameTransitionEvent {
     Fail,
 }
 
-// I don't want
+// I don't want this
 fn from_none_state(
     current_state: Res<State<AppState>>,
     mut next_state: ResMut<NextState<GameState>>,

@@ -1,38 +1,17 @@
 use bevy::prelude::*;
-use bevy_xpbd_3d::prelude::*;
+use bevy_xpbd_3d::prelude::Collision;
 
-use self::sounds::SoundsPlugin;
+use super::{game_state_machine::GameState, Planet};
 
-use super::{game_state_machine::GameState, gravity::GravityPlugin, Junk, Planet};
+pub struct JunkPlugin;
 
-mod sounds;
-
-pub struct PlayingPlugin;
-
-impl Plugin for PlayingPlugin {
+impl Plugin for JunkPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((SoundsPlugin, GravityPlugin))
-            .add_event::<JunkCollisionEvent>()
-            .add_systems(OnEnter(GameState::Paused), resume_physics)
-            .add_systems(OnExit(GameState::Playing), pause_physics)
-            .add_systems(
-                Update,
-                (
-                    junk_collisions,
-                    // constrain_to_bounds,
-                    // update_player_animations,
-                )
-                    .run_if(in_state(GameState::Playing)),
-            );
+        app.add_event::<JunkCollisionEvent>().add_systems(
+            Update,
+            (junk_collisions,).run_if(in_state(GameState::Playing)),
+        );
     }
-}
-
-fn pause_physics(mut physics_loop: ResMut<PhysicsLoop>) {
-    physics_loop.pause();
-}
-
-fn resume_physics(mut physics_loop: ResMut<PhysicsLoop>) {
-    physics_loop.resume();
 }
 
 #[derive(Event)]
@@ -44,6 +23,10 @@ pub struct JunkCollisionEvent {
     /// In global coordinates.
     pub contact_point: Vec3,
 }
+
+#[derive(Component, Reflect, Default, Debug)]
+#[reflect(Component)]
+pub struct Junk {}
 
 fn junk_collisions(
     mut collision_event_reader: EventReader<Collision>,
