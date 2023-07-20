@@ -1,5 +1,7 @@
+use std::ops::AddAssign;
+
 use bevy::prelude::*;
-use bevy_xpbd_3d::prelude::*;
+use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};
 
 use crate::app::game::game_state_machine::GameState;
 
@@ -12,10 +14,22 @@ impl Plugin for GravityPlugin {
         app.register_component_as::<dyn GravitySource, PointGravity>()
             .register_component_as::<dyn GravitySource, PlanarGravity>()
             .add_systems(
-                Update,
-                (update_gravity,).run_if(in_state(GameState::Playing)),
+                PhysicsSchedule,
+                (update_gravity,)
+                    .run_if(in_state(GameState::Playing))
+                    .in_set(GravitySystemSet),
             );
     }
+}
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct GravitySystemSet;
+
+/// A component that indicates that an entity is affected by gravity.
+#[derive(Component, Default)]
+pub struct GravityBound {
+    /// The sum of all forces due to gravity acting on this entity.
+    pub gravity_force: Vec3,
 }
 
 #[derive(Bundle)]
@@ -133,12 +147,19 @@ impl GravitySource for CurvedGravity {
 // applies it to the rigid body.
 fn update_gravity(
     mut rigid_body_query: Query<
-        (RigidBodyQuery, &mut ExternalForce, &CollidingEntities),
+        (
+            RigidBodyQuery,
+            &mut ExternalForce,
+            &CollidingEntities,
+            &mut GravityBound,
+        ),
         Without<Sensor>,
     >,
     gravity_source_query: Query<(&dyn GravitySource, &Position), With<Sensor>>,
 ) {
-    for (rb_item, mut external_force, colliding_entities) in rigid_body_query.iter_mut() {
+    for (rb_item, mut external_force, colliding_entities, mut gravity_bound) in
+        rigid_body_query.iter_mut()
+    {
         if !rb_item.rb.is_dynamic() {
             continue;
         }
@@ -159,6 +180,7 @@ fn update_gravity(
             }
         }
 
-        external_force.set_force(total_force);
+        gravity_bound.gravity_force = total_force;
+        external_force.add_assign(total_force)
     }
 }

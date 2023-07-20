@@ -15,9 +15,19 @@ impl Plugin for GraphicsPlugin {
             color: Color::WHITE,
             brightness: 1.0 / 5.0f32,
         })
-        .add_systems(OnEnter(GameState::Playing), (setup_graphics));
+        .add_systems(
+            Update,
+            (follow_target,).run_if(in_state(GameState::Playing)),
+        )
+        .add_systems(OnEnter(GameState::Playing), (setup_graphics,));
     }
 }
+
+#[derive(Component)]
+struct MainCamera;
+
+#[derive(Component)]
+pub struct MainCameraTarget;
 
 fn setup_graphics(mut commands: Commands) {
     // directional 'sun' light
@@ -40,14 +50,14 @@ fn setup_graphics(mut commands: Commands) {
         ..default()
     });
 
-    let camera_transform = Transform::from_xyz(0.0, 0.0, 30.0);
+    let camera_transform = Transform::from_xyz(0.0, 0.0, 10.0);
 
     // Bevy is a right handed, Y-up system.
     commands.spawn((
         Camera3dBundle {
             tonemapping: Tonemapping::TonyMcMapface,
             projection: Projection::Orthographic(OrthographicProjection {
-                scale: 32.0,
+                scale: 10.0,
                 scaling_mode: ScalingMode::FixedVertical(1.0),
                 ..default()
             }),
@@ -55,9 +65,20 @@ fn setup_graphics(mut commands: Commands) {
             ..default()
         },
         BloomSettings::default(),
+        MainCamera, // The rig tag
     ));
 }
 
-fn follow_player() {
-    todo!()
+fn follow_target(
+    target_query: Query<&Transform, (With<MainCameraTarget>, Without<MainCamera>)>,
+    mut camera_query: Query<&mut Transform, With<MainCamera>>,
+) {
+    let Ok(target_transform) = target_query.get_single() else {
+        return;
+    };
+    let Ok(mut camera_transform) = camera_query.get_single_mut() else {
+        return;
+    };
+
+    //
 }
