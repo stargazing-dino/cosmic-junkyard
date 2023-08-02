@@ -2,6 +2,8 @@
 
 ## Description
 
+![A person walking on a planet](./docs/assets/screenshot.png)
+
 There is no real game idea other than I was interested in [this video](https://www.youtube.com/watch?v=QLH_0T_xv3I&t=2s).
 
 TODO: lol
