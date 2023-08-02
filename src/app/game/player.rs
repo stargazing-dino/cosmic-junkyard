@@ -1,5 +1,3 @@
-use std::ops::AddAssign;
-
 use bevy::prelude::*;
 use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};
 
@@ -24,13 +22,13 @@ pub struct Player;
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct PlayerSystemSet;
 
-const PLAYER_SPEED: f32 = 0.2;
+const PLAYER_SPEED: f32 = 2.0;
 
 pub fn movement(
     keyboard_input: Res<Input<KeyCode>>,
     mut players: Query<(&mut Transform, &mut LinearVelocity), With<Player>>,
 ) {
-    for (mut transform, mut linear_velocity) in &mut players {
+    for (transform, mut linear_velocity) in &mut players {
         // Get the player's  forward and right vectors
         let forward = -transform.forward();
         let right = -transform.right();

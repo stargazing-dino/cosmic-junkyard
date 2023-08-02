@@ -22,8 +22,6 @@ pub struct Bounds {
 }
 
 /// This updates the bounds based off the camera's position and projection.
-/// If there is no camera, the bounds will be unchanged. We'd need to reconsider
-/// this in headless mode.
 fn update_bounds(
     window: Query<&Window, With<PrimaryWindow>>,
     camera_projection: Query<(&Transform, &Projection), With<Camera>>,

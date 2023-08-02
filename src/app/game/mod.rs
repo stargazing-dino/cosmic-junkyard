@@ -179,7 +179,7 @@ fn setup_level_gen(
         .spawn((
             PlanetBundle {
                 planet: Planet {
-                    planet_type: planet_type,
+                    planet_type,
                     state: MovementState::Idle,
                 },
                 position: Position(position_vector),
@@ -200,7 +200,7 @@ fn setup_level_gen(
                 PointGravity {
                     // TODO: This looks off bruh
                     center_mass: mass as f32,
-                    gravity_strength: 2.8,
+                    gravity_strength: 6.8,
                 },
                 GravitySourceBundle {
                     position: Position(position_vector),
