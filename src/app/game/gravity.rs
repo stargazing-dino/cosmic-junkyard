@@ -1,5 +1,3 @@
-use std::ops::AddAssign;
-
 use bevy::prelude::*;
 use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};
 
@@ -15,7 +13,8 @@ impl Plugin for GravityPlugin {
             .register_component_as::<dyn GravitySource, PlanarGravity>()
             .add_systems(
                 PhysicsSchedule,
-                (update_gravity,)
+                (update_gravity, keep_upright)
+                    .chain()
                     .run_if(in_state(GameState::Playing))
                     .in_set(GravitySystemSet),
             );
@@ -92,7 +91,7 @@ pub struct PlanarGravity {
 impl GravitySource for PlanarGravity {
     /// Fg = m * g
     fn calculate_force(&self, _position: Vec3, _other_position: Vec3, mass: f32) -> Vec3 {
-        let gravity_vector = self.normal.normalize() * self.gravity_strength * mass;
+        let gravity_vector = -self.normal.normalize() * self.gravity_strength * mass;
 
         gravity_vector
     }
@@ -143,7 +142,7 @@ impl GravitySource for CurvedGravity {
 }
 
 // This function gets all rigid bodies currently in a collision with a sensor. If that sensor is
-// has a GravitySource component, then it calculates the force due to that gravity source and
+// has a GravitySource component it then calculates the force due to that gravity source and
 // applies it to the rigid body.
 fn update_gravity(
     mut rigid_body_query: Query<
@@ -164,23 +163,55 @@ fn update_gravity(
             continue;
         }
 
-        let mut total_force = Vec3::ZERO;
-
         for colliding_entity in colliding_entities.0.iter() {
             if let Ok((gravity_sources, position)) = gravity_source_query.get(*colliding_entity) {
                 for gravity_source in gravity_sources {
-                    let force = gravity_source.calculate_force(
+                    let gravtity_force = gravity_source.calculate_force(
                         position.0,
                         rb_item.position.0,
                         rb_item.mass.0,
                     );
 
-                    total_force += force;
+                    external_force.apply_force(gravtity_force);
                 }
             }
         }
 
-        gravity_bound.gravity_force = total_force;
-        external_force.add_assign(total_force)
+        gravity_bound.gravity_force = external_force.force();
+    }
+}
+
+#[derive(Component)]
+pub struct Upright;
+
+/// This system rotates the player to keep them upright relative to the gravity direction.
+pub fn keep_upright(mut gravity_bound_query: Query<(&mut Rotation, &GravityBound), With<Upright>>) {
+    for (mut rotation, gravity_bound) in &mut gravity_bound_query {
+        let gravity_force = gravity_bound.gravity_force;
+        if gravity_force == Vec3::ZERO {
+            continue;
+        }
+
+        let gravity_up = -gravity_force.normalize();
+        let player_up = rotation.0 * Vec3::Y;
+
+        // calculate the rotation from the player's up vector to the gravity up vector
+        let rotation_axis = player_up.cross(gravity_up);
+
+        // The cross product of two vectors that are collinear (in the same line,
+        // which also includes exactly opposed) is a zero vector. Normalizing a zero
+        // vector results in a NaN vector because normalization is dividing each
+        // component by the vector's magnitude (which is zero for a zero vector),
+        // thus dividing by zero.
+        if rotation_axis != Vec3::ZERO {
+            let rotation_axis = rotation_axis.normalize();
+            let rotation_angle = player_up.angle_between(gravity_up);
+            let rotation_diff = Quat::from_axis_angle(rotation_axis, rotation_angle);
+
+            let target_rotation = rotation_diff * rotation.0;
+
+            // Rotate the player to align with the gravity direction
+            rotation.0 = target_rotation;
+        }
     }
 }

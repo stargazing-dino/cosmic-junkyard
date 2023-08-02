@@ -126,24 +126,6 @@ fn setup(
                                 Label,
                             ));
                         });
-
-                    // TODO: Picture
-                    parent.spawn((
-                        NodeBundle {
-                            style: Style {
-                                flex_grow: 1.0,
-                                margin: UiRect {
-                                    top: Val::Px(64.0),
-                                    right: Val::Px(64.0),
-                                    ..default()
-                                },
-                                ..default()
-                            },
-                            background_color: Color::WHITE.into(),
-                            ..default()
-                        },
-                        UiImage::new(image_collection.main_menu_aim.clone()),
-                    ));
                 });
 
             parent
@@ -156,22 +138,14 @@ fn setup(
                     ..default()
                 })
                 .with_children(|parent| {
-                    parent.spawn((
-                        NodeBundle {
-                            style: Style {
-                                flex_grow: 1.0,
-                                margin: UiRect {
-                                    bottom: Val::Px(64.0),
-                                    left: Val::Px(64.0),
-                                    ..default()
-                                },
-                                ..default()
-                            },
-                            background_color: Color::WHITE.into(),
+                    // Spacer
+                    parent.spawn((NodeBundle {
+                        style: Style {
+                            flex_grow: 1.0,
                             ..default()
                         },
-                        UiImage::new(image_collection.target.clone()),
-                    ));
+                        ..default()
+                    },));
 
                     parent
                         .spawn(NodeBundle {

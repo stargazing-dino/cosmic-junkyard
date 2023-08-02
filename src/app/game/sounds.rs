@@ -1,8 +1,6 @@
 use std::time::Duration;
 
-use bevy::{audio::Volume, prelude::*};
-
-use crate::assets::sounds::SoundCollection;
+use bevy::prelude::*;
 
 use super::{game_state_machine::GameState, junk::JunkCollisionEvent};
 
@@ -28,9 +26,9 @@ pub struct SoundCollisionTimer(Timer);
 pub struct CollisionSound;
 
 fn junk_collisions(
-    mut commands: Commands,
-    sound_collection: Res<SoundCollection>,
-    collision_sink_query: Query<&AudioSink, With<CollisionSound>>,
+    // mut commands: Commands,
+    // sound_collection: Res<SoundCollection>,
+    // collision_sink_query: Query<&AudioSink, With<CollisionSound>>,
     mut junk_collision_event_reader: EventReader<JunkCollisionEvent>,
     mut sound_collision_stopwatch: ResMut<SoundCollisionTimer>,
     time: Res<Time>,
@@ -42,7 +40,7 @@ fn junk_collisions(
     }
 
     for _junk_collision in junk_collision_event_reader.iter() {
-        let sound = sound_collection.fatal.clone();
+        // let sound = sound_collection.fatal.clone();
 
         // if let Ok(sink) = collision_sink_query.get_single() {
         //     sink.play();

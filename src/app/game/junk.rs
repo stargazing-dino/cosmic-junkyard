@@ -41,14 +41,19 @@ fn junk_collisions(
         let is_junk_entity1 = junk_query.get(contact.entity1).is_ok();
         let is_planet_entity2 = planet_query.get(contact.entity2).is_ok();
 
-        let contact_point = (contact.point1 + contact.point2) / 2.0;
+        for manifold in &contact.manifolds {
+            for contact in &manifold.contacts {
+                let contact_point = (contact.point1 + contact.point2) / 2.0;
 
-        if (is_planet_entity1 && is_junk_entity2) || (is_junk_entity1 && is_planet_entity2) {
-            junk_collision_write.send(JunkCollisionEvent {
-                normal: contact.normal,
-                penetration: contact.penetration,
-                contact_point,
-            });
+                if (is_planet_entity1 && is_junk_entity2) || (is_junk_entity1 && is_planet_entity2)
+                {
+                    junk_collision_write.send(JunkCollisionEvent {
+                        normal: contact.normal,
+                        penetration: contact.penetration,
+                        contact_point,
+                    });
+                }
+            }
         }
     }
 }
