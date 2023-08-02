@@ -3,7 +3,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 use crate::{
-    assets::{backgrounds::BackgroundCollection, fonts::FontCollection, images::ImageCollection},
+    assets::{backgrounds::BackgroundCollection, fonts::FontCollection},
     utility::despawn_components,
 };
 
@@ -54,7 +54,6 @@ impl MenuButtonAction {
 fn setup(
     mut commands: Commands,
     background_collection: Res<BackgroundCollection>,
-    image_collection: Res<ImageCollection>,
     font_collection: Res<FontCollection>,
 ) {
     commands.spawn((Camera2dBundle::default(), MainMenuMarker));

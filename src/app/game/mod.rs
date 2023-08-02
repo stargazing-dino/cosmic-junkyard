@@ -124,10 +124,10 @@ fn setup_level_gen(
     gltf_meshes: Res<Assets<GltfMesh>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let planet_type = PlanetType::Planet1;
-    let mass = 150.0;
-    let position_vector = Vec3::new(0.0, -10.0, 0.0);
-    let surface_size = 20.0;
+    // let planet_type = PlanetType::Planet1;
+    // let mass = 150.0;
+    // let position_vector = Vec3::new(0.0, -10.0, 0.0);
+    // let surface_size = 20.0;
 
     // commands
     // .spawn((
