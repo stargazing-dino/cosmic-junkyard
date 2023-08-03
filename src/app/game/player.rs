@@ -22,14 +22,39 @@ pub struct Player;
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct PlayerSystemSet;
 
-const PLAYER_SPEED: f32 = 2.0;
+const PLAYER_SPEED: f32 = 6.4;
+const AIR_CONTROL_FACTOR: f32 = 0.2;
+const FRICTION_FACTOR: f32 = 0.4;
 
 pub fn movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut players: Query<(&mut Transform, &mut LinearVelocity), With<Player>>,
+    mut players: Query<
+        (
+            &mut Transform,
+            &mut LinearVelocity,
+            &mut AngularVelocity,
+            &ShapeHits,
+            &GravityBound,
+        ),
+        With<Player>,
+    >,
+    sensors_query: Query<&Sensor>,
 ) {
-    for (transform, mut linear_velocity) in &mut players {
-        // Get the player's  forward and right vectors
+    for (transform, mut linear_velocity, mut angularVelocity, shape_hits, gravity_bound) in
+        &mut players
+    {
+        let gravity_force = gravity_bound.gravity_force;
+
+        // If the character is floating in space, don't apply movement
+        if gravity_force == Vec3::ZERO {
+            continue;
+        }
+
+        let gravity_up = -gravity_force.normalize();
+        let touching_ground = shape_hits
+            .iter()
+            .any(|hit| sensors_query.get(hit.entity).is_err());
+
         let forward = -transform.forward();
         let right = -transform.right();
 
@@ -48,15 +73,31 @@ pub fn movement(
             move_dir += right;
         }
 
-        if move_dir == Vec3::ZERO {
-            continue;
+        if move_dir != Vec3::ZERO {
+            // Normalize the movement vector and adjust it for speed and delta time
+            move_dir = move_dir.normalize() * PLAYER_SPEED;
+
+            // Apply the movement to the player
+            if touching_ground {
+                linear_velocity.0 += move_dir;
+            } else {
+                // apply smaller movement when in air
+                linear_velocity.0 += move_dir * AIR_CONTROL_FACTOR;
+            }
         }
 
-        // Normalize the movement vector and adjust it for speed and delta time
-        move_dir = move_dir.normalize() * PLAYER_SPEED;
+        // We need to apply friction to the player when they're on the ground
+        if touching_ground {
+            // project the velocity onto the ground plane and apply friction to it
+            let ground_velocity = linear_velocity.0.dot(gravity_up) * gravity_up;
+            let mut tangential_velocity = linear_velocity.0 - ground_velocity;
 
-        // Apply the movement to the player
-        linear_velocity.0 += move_dir;
+            // apply friction to the tangential velocity
+            tangential_velocity *= 1.0 - FRICTION_FACTOR;
+
+            // combine the velocities
+            linear_velocity.0 = ground_velocity + tangential_velocity;
+        }
     }
 }
 
@@ -65,7 +106,7 @@ pub fn jump(
     mut players: Query<(&mut ExternalForce, &ShapeHits, &GravityBound), With<Player>>,
     sensors_query: Query<&Sensor>,
 ) {
-    for (mut external_force, ground_hits, gravity_bound) in &mut players {
+    for (mut external_force, shape_hits, gravity_bound) in &mut players {
         let gravity_force = gravity_bound.gravity_force;
         if gravity_force == Vec3::ZERO {
             continue;
@@ -73,18 +114,13 @@ pub fn jump(
 
         let gravity_up = -gravity_force.normalize();
 
-        // Jump if space pressed and the player is close enough to the ground
         if keyboard_input.just_pressed(KeyCode::Space) {
-            println!("space pressed. Ground hits: {:?}", ground_hits.len());
-            if !ground_hits.is_empty() {
-                // If we're only hitting sensors, then we can't jump
-                let can_jump = ground_hits
-                    .iter()
-                    .all(|hit| sensors_query.get(hit.entity).is_err());
+            let touching_ground = shape_hits
+                .iter()
+                .any(|hit| sensors_query.get(hit.entity).is_err());
 
-                if can_jump {
-                    external_force.apply_force(gravity_up * 200.0);
-                }
+            if touching_ground {
+                external_force.apply_force(gravity_up * 200.0);
             }
         }
     }

@@ -1069,7 +1069,7 @@ dependencies = [
 [[package]]
 name = "bevy_xpbd_3d"
 version = "0.2.0"
-source = "git+https://github.com/Jondolf/bevy_xpbd.git#1bd3ab24448afba7cac4fec11189b5a9d563d457"
+source = "git+https://github.com/Jondolf/bevy_xpbd.git#6443c27c2db379c5ef802dc05f75645bbba24123"
 dependencies = [
  "bevy",
  "bevy_xpbd_derive",
@@ -1084,7 +1084,7 @@ dependencies = [
 [[package]]
 name = "bevy_xpbd_derive"
 version = "0.1.0"
-source = "git+https://github.com/Jondolf/bevy_xpbd.git#1bd3ab24448afba7cac4fec11189b5a9d563d457"
+source = "git+https://github.com/Jondolf/bevy_xpbd.git#6443c27c2db379c5ef802dc05f75645bbba24123"
 dependencies = [
  "quote",
  "syn 2.0.28",
@@ -1202,9 +1202,9 @@ checksum = "89b2fd2a0dcf38d7971e2194b6b6eebab45ae01067456a7fd93d5547a61b70be"
 
 [[package]]
 name = "cc"
-version = "1.0.80"
+version = "1.0.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51f1226cd9da55587234753d1245dd5b132343ea240f26b6a9003d68706141ba"
+checksum = "6c6b2562119bf28c3439f7f02db99faf0aa1a8cdfe5772a2ee155d32227239f0"
 dependencies = [
  "jobserver",
  "libc",
@@ -2776,9 +2776,9 @@ checksum = "978aa494585d3ca4ad74929863093e87cac9790d81fe7aba2b3dc2890643a0fc"
 
 [[package]]
 name = "orbclient"
-version = "0.3.45"
+version = "0.3.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "221d488cd70617f1bd599ed8ceb659df2147d9393717954d82a0f5e8032a6ab1"
+checksum = "8378ac0dfbd4e7895f2d2c1f1345cab3836910baf3a300b000d04250f0c8428f"
 dependencies = [
  "redox_syscall 0.3.5",
 ]
