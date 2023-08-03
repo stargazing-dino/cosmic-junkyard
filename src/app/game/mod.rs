@@ -5,13 +5,15 @@ use bevy::{
 use bevy_asset_loader::prelude::*;
 use bevy_xpbd_3d::{
     prelude::{
-        CoefficientCombine, Collider, ColliderMassProperties, ExternalForce, Friction, Inertia,
-        Mass, PhysicsDebugConfig, PhysicsLoop, PhysicsPlugins, Position, Restitution, RigidBody,
-        Sensor, ShapeCaster,
+        AngularDamping, CoefficientCombine, Collider, ColliderMassProperties, ExternalForce,
+        Friction, Inertia, Mass, PhysicsDebugConfig, PhysicsLoop, PhysicsPlugins, Position,
+        Restitution, RigidBody, Sensor, ShapeCaster,
     },
     resources::Gravity,
     PhysicsSchedule, PhysicsStepSet,
 };
+use rand::thread_rng;
+use strum::IntoEnumIterator;
 
 use crate::{
     assets::{
@@ -25,14 +27,14 @@ use self::{
     game_state_machine::{GameState, GameStateMachinePlugin},
     graphics::{GraphicsPlugin, MainCameraTarget},
     gravity::{
-        GravityBound, GravityPlugin, GravitySourceBundle, GravitySystemSet, PointGravity, Upright,
+        GravityBound, GravityPlugin, GravitySourceBundle, GravitySystemSet, PlanarGravity,
+        PointGravity, Upright,
     },
     junk::JunkPlugin,
     player::{Player, PlayerPlugin, PlayerSystemSet},
     sounds::SoundsPlugin,
 };
 
-mod bounds;
 mod game_state_machine;
 mod graphics;
 mod gravity;
@@ -51,7 +53,6 @@ impl Plugin for GamePlugin {
         .add_collection_to_loading_state::<_, AstronautCollection>(GameState::AssetLoading)
         .insert_resource(Gravity::ZERO)
         .add_plugins((
-            // BoundsPlugin,
             PhysicsPlugins::default(),
             JunkPlugin,
             GraphicsPlugin,
@@ -126,49 +127,46 @@ fn setup_level_gen(
 ) {
     // let planet_type = PlanetType::Planet1;
     // let mass = 150.0;
-    // let position_vector = Vec3::new(0.0, -10.0, 0.0);
+    // let position_vector = Vec3::new(0.0, -5.0, 0.0);
     // let surface_size = 20.0;
 
     // commands
-    // .spawn((
-    //     PbrBundle {
-    //         mesh: meshes.add(Mesh::from(shape::Plane {
-    //             size: 20.0,
-    //             subdivisions: 2,
-    //         })),
-    //         ..Default::default()
-    //     },
-    //     Position(position_vector),
-    //     RigidBody::Kinematic,
-    //     Mass(mass as f32),
-    //     ColliderMassProperties::ZERO,
-    //     Collider::cuboid(surface_size, 0.1, surface_size),
-    //     Restitution::new(0.0).with_combine_rule(CoefficientCombine::Max),
-    // ))
-    // // The gravity field for this planar surface
-    // .with_children(|parent| {
-    //     // I need to move it up by half the size of the surface
-    //     let postion_vector = Vec3::new(0.0, 0.0, 0.0);
+    //     .spawn((
+    //         PbrBundle {
+    //             mesh: meshes.add(Mesh::from(shape::Plane {
+    //                 size: 20.0,
+    //                 subdivisions: 2,
+    //             })),
+    //             ..Default::default()
+    //         },
+    //         Position(position_vector),
+    //         RigidBody::Kinematic,
+    //         Mass(mass as f32),
+    //         ColliderMassProperties::ZERO,
+    //         Collider::cuboid(surface_size, 0.1, surface_size),
+    //         Restitution::new(0.0).with_combine_rule(CoefficientCombine::Max),
+    //     ))
+    //     // The gravity field for this planar surface
+    //     .with_children(|parent| {
+    //         // I need to move it up by half the size of the surface
+    //         let postion_vector = Vec3::new(0.0, 0.0, 0.0);
 
-    //     parent.spawn((
-    //         PlanarGravity {
-    //             // TODO: This looks off bruh
-    //             normal: Vec3::Y,
-    //             gravity_strength: 2.8,
-    //         },
-    //         GravitySourceBundle {
-    //             position: Position(position_vector),
-    //             rigid_body: RigidBody::Kinematic,
-    //             collider: Collider::cuboid(surface_size, surface_size, surface_size),
-    //             sensor: Sensor,
-    //         },
-    //     ));
-    // });
-    // let planet_types = PlanetType::iter().collect::<Vec<_>>();
-    // let mut rng = thread_rng();
+    //         parent.spawn((
+    //             PlanarGravity {
+    //                 // TODO: This looks off bruh
+    //                 normal: Vec3::Y,
+    //                 gravity_strength: 2.8,
+    //             },
+    //             GravitySourceBundle {
+    //                 position: Position(position_vector),
+    //                 rigid_body: RigidBody::Kinematic,
+    //                 collider: Collider::cuboid(surface_size, surface_size, surface_size),
+    //                 sensor: Sensor,
+    //             },
+    //         ));
+    //     });
 
     let planet_type = PlanetType::Planet1;
-    // // let planet_type = planet_types.choose(&mut rng).unwrap();
     let gltf_handle = planet_type.model_from(&planet_collection);
     let (scene, collider) =
         collider_from_gltf(gltf_handle, &gltf_assets, &gltf_meshes, &mut meshes);
@@ -212,8 +210,8 @@ fn setup_level_gen(
         });
 
     let astronaut = astronaut_collection.fernando_the_flamingo.clone();
-    let collider = Collider::cuboid(0.6, 0.6, 0.6);
-    // let collider = Collider::ball(0.3);
+    // let collider = Collider::cuboid(0.6, 0.6, 0.6);
+    let collider = Collider::ball(0.3);
 
     commands
         .spawn((
@@ -224,19 +222,24 @@ fn setup_level_gen(
             // Cast the player shape downwards to detect when the player is grounded
             ShapeCaster::new(collider, -Vec3::Y * 0.05, Quat::default(), -Vec3::Y)
                 .with_ignore_origin_penetration(true) // Don't count player's collider
-                .with_max_time_of_impact(0.1)
+                .with_max_time_of_impact(0.02)
                 // The user can be in a lot of gravity fields and those are all colliders
-                .with_max_hits(10),
+                .with_max_hits(3),
             Restitution::new(0.0).with_combine_rule(CoefficientCombine::Min),
             ColliderMassProperties::ZERO,
             Inertia(Mat3::IDENTITY),
-            Friction::new(0.4).with_static_coefficient(0.8),
-            Mass(2.0),
-            ExternalForce::default().with_persistence(false),
-            MainCameraTarget,
-            Player,
-            GravityBound::default(),
-            Upright,
+            Friction::new(0.6),
+            Mass(1.0),
+            (
+                ExternalForce::default().with_persistence(false),
+                MainCameraTarget,
+                Player,
+                GravityBound::default(),
+                Upright,
+                // TODO: Not sure if we should use Linear damping or Angular
+                // damping here because we have funky axes and stuff.
+                AngularDamping(1.6),
+            ),
         ))
         .with_children(|parent| {
             parent.spawn(SceneBundle {
