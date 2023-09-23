@@ -6,14 +6,12 @@ use bevy_asset_loader::prelude::*;
 use bevy_xpbd_3d::{
     prelude::{
         AngularDamping, CoefficientCombine, Collider, ColliderMassProperties, ExternalForce,
-        ExternalImpulse, Friction, Inertia, Mass, PhysicsDebugConfig, PhysicsLoop, PhysicsPlugins,
-        Position, Restitution, RigidBody, Sensor, ShapeCaster,
+        Friction, Inertia, Mass, PhysicsDebugConfig, PhysicsLoop, PhysicsPlugins, Position,
+        Restitution, RigidBody, Sensor, ShapeCaster,
     },
     resources::Gravity,
     PhysicsSchedule, PhysicsStepSet,
 };
-use rand::thread_rng;
-use strum::IntoEnumIterator;
 
 use crate::{
     assets::{
@@ -27,8 +25,7 @@ use self::{
     game_state_machine::{GameState, GameStateMachinePlugin},
     graphics::{GraphicsPlugin, MainCameraTarget},
     gravity::{
-        GravityBound, GravityPlugin, GravitySourceBundle, GravitySystemSet, PlanarGravity,
-        PointGravity, Upright,
+        GravityBound, GravityPlugin, GravitySourceBundle, GravitySystemSet, PointGravity, Upright,
     },
     junk::JunkPlugin,
     player::{Player, PlayerPlugin, PlayerSystemSet},
