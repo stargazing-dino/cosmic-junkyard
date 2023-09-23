@@ -7,7 +7,7 @@ use bevy_xpbd_3d::{
     prelude::{
         AngularDamping, CoefficientCombine, Collider, ColliderMassProperties, ExternalForce,
         Friction, Inertia, Mass, PhysicsDebugConfig, PhysicsLoop, PhysicsPlugins, Position,
-        Restitution, RigidBody, Sensor, ShapeCaster,
+        Restitution, RigidBody, Rotation, Sensor, ShapeCaster,
     },
     resources::Gravity,
     PhysicsSchedule, PhysicsStepSet,
@@ -122,53 +122,13 @@ fn setup_level_gen(
     gltf_meshes: Res<Assets<GltfMesh>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    // let planet_type = PlanetType::Planet1;
-    // let mass = 150.0;
-    // let position_vector = Vec3::new(0.0, -5.0, 0.0);
-    // let surface_size = 20.0;
-
-    // commands
-    //     .spawn((
-    //         PbrBundle {
-    //             mesh: meshes.add(Mesh::from(shape::Plane {
-    //                 size: 20.0,
-    //                 subdivisions: 2,
-    //             })),
-    //             ..Default::default()
-    //         },
-    //         Position(position_vector),
-    //         RigidBody::Kinematic,
-    //         Mass(mass as f32),
-    //         ColliderMassProperties::ZERO,
-    //         Collider::cuboid(surface_size, 0.1, surface_size),
-    //         Restitution::new(0.0).with_combine_rule(CoefficientCombine::Max),
-    //     ))
-    //     // The gravity field for this planar surface
-    //     .with_children(|parent| {
-    //         // I need to move it up by half the size of the surface
-    //         let postion_vector = Vec3::new(0.0, 0.0, 0.0);
-
-    //         parent.spawn((
-    //             PlanarGravity {
-    //                 // TODO: This looks off bruh
-    //                 normal: Vec3::Y,
-    //                 gravity_strength: 2.8,
-    //             },
-    //             GravitySourceBundle {
-    //                 position: Position(position_vector),
-    //                 rigid_body: RigidBody::Kinematic,
-    //                 collider: Collider::cuboid(surface_size, surface_size, surface_size),
-    //                 sensor: Sensor,
-    //             },
-    //         ));
-    //     });
-
     let planet_type = PlanetType::Planet1;
     let gltf_handle = planet_type.model_from(&planet_collection);
     let (scene, collider) =
         collider_from_gltf(gltf_handle, &gltf_assets, &gltf_meshes, &mut meshes);
     let mass = 150.0;
-    let position_vector = Vec3::new(0.0, 0.0, 0.0);
+
+    let planet_position = Vec3::new(0.0, 0.0, 0.0);
 
     commands
         .spawn((
@@ -177,7 +137,7 @@ fn setup_level_gen(
                     planet_type,
                     state: MovementState::Idle,
                 },
-                position: Position(position_vector),
+                position: Position(planet_position),
                 rigid_body: RigidBody::Kinematic,
                 mass: Mass(mass as f32),
                 friction: Friction::new(0.4).with_static_coefficient(0.8),
@@ -198,7 +158,7 @@ fn setup_level_gen(
                     gravity_strength: 6.8,
                 },
                 GravitySourceBundle {
-                    position: Position(position_vector),
+                    position: Position(planet_position),
                     rigid_body: RigidBody::Kinematic,
                     collider: Collider::ball(radius),
                     sensor: Sensor,
@@ -207,14 +167,19 @@ fn setup_level_gen(
         });
 
     let astronaut = astronaut_collection.fernando_the_flamingo.clone();
-    // let collider = Collider::cuboid(0.6, 0.6, 0.6);
     let collider = Collider::ball(0.3);
+    let player_position = Vec3::new(10.0, 0.0, 0.0);
+    let direction_to_center = (player_position - planet_position).normalize();
+    let rotation_axis = Vec3::Y.cross(direction_to_center).normalize();
+    let rotation_angle = direction_to_center.angle_between(Vec3::Y);
+    let rotation_quat = Quat::from_axis_angle(rotation_axis, rotation_angle);
 
     commands
         .spawn((
             SpatialBundle::default(),
             RigidBody::Dynamic,
-            Position(Vec3::new(6.0, 0.0, 0.0)),
+            Position(player_position),
+            Rotation(rotation_quat),
             collider.clone(),
             // Cast the player shape downwards to detect when the player is grounded
             ShapeCaster::new(collider, -Vec3::Y * 0.05, Quat::default(), -Vec3::Y)
