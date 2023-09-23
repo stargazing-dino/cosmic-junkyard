@@ -32,7 +32,6 @@ pub fn movement(
         (
             &mut Transform,
             &mut LinearVelocity,
-            &mut AngularVelocity,
             &ShapeHits,
             &GravityBound,
         ),
@@ -40,9 +39,7 @@ pub fn movement(
     >,
     sensors_query: Query<&Sensor>,
 ) {
-    for (transform, mut linear_velocity, mut angular_velocity, shape_hits, gravity_bound) in
-        &mut players
-    {
+    for (transform, mut linear_velocity, shape_hits, gravity_bound) in &mut players {
         let gravity_force = gravity_bound.gravity_force;
 
         // If the character is floating in space, don't apply movement
