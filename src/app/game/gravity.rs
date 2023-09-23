@@ -184,7 +184,10 @@ fn update_gravity(
 #[derive(Component)]
 pub struct Upright;
 
-/// This system rotates the player to keep them upright relative to the gravity direction.
+const ROTATION_SPEED: f32 = 0.3; // Adjust this value for faster/slower rotation correction
+
+const ROTATION_THRESHOLD: f32 = 60.0; // Angle in degrees. Adjust based on desired gameplay.
+
 pub fn keep_upright(mut gravity_bound_query: Query<(&mut Rotation, &GravityBound), With<Upright>>) {
     for (mut rotation, gravity_bound) in &mut gravity_bound_query {
         let gravity_force = gravity_bound.gravity_force;
@@ -195,23 +198,24 @@ pub fn keep_upright(mut gravity_bound_query: Query<(&mut Rotation, &GravityBound
         let gravity_up = -gravity_force.normalize();
         let player_up = rotation.0 * Vec3::Y;
 
-        // calculate the rotation from the player's up vector to the gravity up vector
+        // Calculate the rotation from the player's up vector to the gravity up vector
+        let rotation_angle = player_up.angle_between(gravity_up).to_degrees();
+
+        // If the angle exceeds the threshold, don't try to correct
+        if rotation_angle > ROTATION_THRESHOLD {
+            continue;
+        }
+
         let rotation_axis = player_up.cross(gravity_up);
 
-        // The cross product of two vectors that are collinear (in the same line,
-        // which also includes exactly opposed) is a zero vector. Normalizing a zero
-        // vector results in a NaN vector because normalization is dividing each
-        // component by the vector's magnitude (which is zero for a zero vector),
-        // thus dividing by zero.
         if rotation_axis != Vec3::ZERO {
             let rotation_axis = rotation_axis.normalize();
-            let rotation_angle = player_up.angle_between(gravity_up);
-            let rotation_diff = Quat::from_axis_angle(rotation_axis, rotation_angle);
+            let rotation_diff = Quat::from_axis_angle(rotation_axis, rotation_angle.to_radians());
 
             let target_rotation = rotation_diff * rotation.0;
 
-            // Rotate the player to align with the gravity direction
-            rotation.0 = target_rotation;
+            // Gradually rotate the player to align with the gravity direction
+            rotation.0 = rotation.0.lerp(target_rotation, ROTATION_SPEED);
         }
     }
 }
