@@ -1,10 +1,14 @@
 use bevy::prelude::*;
+use bevy_asset_loader::loading_state::{LoadingState, LoadingStateAppExt};
 
 pub struct AppStateMachinePlugin;
 
 impl Plugin for AppStateMachinePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<AppState>()
+            .add_loading_state(
+                LoadingState::new(AppState::AssetLoading).continue_to_state(AppState::MainMenu),
+            )
             .add_event::<AppTransitionEvent>()
             .add_systems(Update, app_transition);
     }

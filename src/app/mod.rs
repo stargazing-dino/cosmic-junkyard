@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use bevy::prelude::*;
-use bevy_asset_loader::prelude::{LoadingState, LoadingStateAppExt};
+use bevy_asset_loader::prelude::LoadingStateAppExt;
 
 use crate::assets::{
     backgrounds::BackgroundCollection, fonts::FontCollection, images::ImageCollection,
@@ -32,9 +32,6 @@ pub struct AppPlugin;
 impl Plugin for AppPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(AppStateMachinePlugin)
-            .add_loading_state(
-                LoadingState::new(AppState::AssetLoading).continue_to_state(AppState::MainMenu),
-            )
             .add_collection_to_loading_state::<_, MusicCollection>(AppState::AssetLoading)
             .add_collection_to_loading_state::<_, UiSoundCollection>(AppState::AssetLoading)
             .add_collection_to_loading_state::<_, SoundCollection>(AppState::AssetLoading)
