@@ -6,8 +6,8 @@ use bevy_asset_loader::prelude::*;
 use bevy_xpbd_3d::{
     prelude::{
         AngularDamping, CoefficientCombine, Collider, ColliderMassProperties, ExternalForce,
-        Friction, Inertia, Mass, PhysicsDebugConfig, PhysicsLoop, PhysicsPlugins, Position,
-        Restitution, RigidBody, Sensor, ShapeCaster,
+        ExternalImpulse, Friction, Inertia, Mass, PhysicsDebugConfig, PhysicsLoop, PhysicsPlugins,
+        Position, Restitution, RigidBody, Sensor, ShapeCaster,
     },
     resources::Gravity,
     PhysicsSchedule, PhysicsStepSet,

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use app::AppPlugin;
-use bevy::{asset::ChangeWatcher, prelude::*};
+use bevy::{asset::ChangeWatcher, prelude::*, window::PresentMode};
 
 mod app;
 mod assets;
