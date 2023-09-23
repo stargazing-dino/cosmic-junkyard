@@ -40,7 +40,7 @@ pub fn movement(
     >,
     sensors_query: Query<&Sensor>,
 ) {
-    for (transform, mut linear_velocity, mut angularVelocity, shape_hits, gravity_bound) in
+    for (transform, mut linear_velocity, mut angular_velocity, shape_hits, gravity_bound) in
         &mut players
     {
         let gravity_force = gravity_bound.gravity_force;
@@ -103,11 +103,13 @@ pub fn movement(
 
 pub fn jump(
     keyboard_input: Res<Input<KeyCode>>,
-    mut players: Query<(&mut ExternalForce, &ShapeHits, &GravityBound), With<Player>>,
+    mut players: Query<(&mut ExternalImpulse, &ShapeHits, &GravityBound), With<Player>>,
     sensors_query: Query<&Sensor>,
 ) {
-    for (mut external_force, shape_hits, gravity_bound) in &mut players {
+    for (mut external_impulse, shape_hits, gravity_bound) in &mut players {
         let gravity_force = gravity_bound.gravity_force;
+
+        // If the player is floating in space, don't apply jump
         if gravity_force == Vec3::ZERO {
             continue;
         }
@@ -120,7 +122,7 @@ pub fn jump(
                 .any(|hit| sensors_query.get(hit.entity).is_err());
 
             if touching_ground {
-                external_force.apply_force(gravity_up * 200.0);
+                external_impulse.apply_impulse(gravity_up * 16.0);
             }
         }
     }
