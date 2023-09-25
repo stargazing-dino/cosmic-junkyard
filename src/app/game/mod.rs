@@ -7,13 +7,14 @@ use bevy_xpbd_3d::{
     prelude::{
         AngularDamping, CoefficientCombine, Collider, ColliderMassProperties, ExternalForce,
         Friction, Inertia, Mass, PhysicsDebugConfig, PhysicsLoop, PhysicsPlugins, Position,
-        Restitution, RigidBody, Rotation, Sensor, ShapeCaster,
+        Restitution, RigidBody, Sensor, ShapeCaster,
     },
     resources::Gravity,
     PhysicsSchedule, PhysicsStepSet,
 };
 
 use crate::{
+    app::game::graphics::MainFollowTarget,
     assets::{
         characters::AstronautCollection,
         environment::{PlanetCollection, PlanetType},
@@ -23,12 +24,13 @@ use crate::{
 
 use self::{
     game_state_machine::{GameState, GameStateMachinePlugin},
-    graphics::{GraphicsPlugin, MainCameraTarget},
+    graphics::GraphicsPlugin,
     gravity::{
         GravityBound, GravityPlugin, GravitySourceBundle, GravitySystemSet, PointGravity, Upright,
     },
     junk::JunkPlugin,
-    player::{Player, PlayerPlugin, PlayerSystemSet},
+    movement::{FrictionSystemSet, MovementPlugin, MovementSystemSet},
+    player::{Player, PlayerPlugin},
     sounds::SoundsPlugin,
 };
 
@@ -36,10 +38,16 @@ mod game_state_machine;
 mod graphics;
 mod gravity;
 mod junk;
+mod movement;
 mod player;
 mod sounds;
 
 pub struct GamePlugin;
+
+#[derive(Resource)]
+pub struct DebugGizmos {
+    pub enabled: bool,
+}
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
@@ -49,30 +57,32 @@ impl Plugin for GamePlugin {
         .add_collection_to_loading_state::<_, PlanetCollection>(GameState::AssetLoading)
         .add_collection_to_loading_state::<_, AstronautCollection>(GameState::AssetLoading)
         .insert_resource(Gravity::ZERO)
+        .insert_resource(DebugGizmos { enabled: true })
+        .insert_resource(PhysicsDebugConfig {
+            // enabled: false,
+            enabled: true,
+            ..Default::default()
+        })
         .add_plugins((
             PhysicsPlugins::default(),
             JunkPlugin,
             GraphicsPlugin,
             GravityPlugin,
             PlayerPlugin,
+            MovementPlugin,
             SoundsPlugin,
             GameStateMachinePlugin,
         ))
-        .insert_resource(PhysicsDebugConfig {
-            // enabled: false,
-            enabled: true,
-            ..Default::default()
-        })
-        .configure_sets(
-            PhysicsSchedule,
-            (GravitySystemSet, PlayerSystemSet)
-                .chain()
-                .before(PhysicsStepSet::BroadPhase),
-        )
         .add_systems(OnEnter(GameState::Paused), pause_physics)
         .add_systems(
             OnEnter(GameState::Playing),
             (setup_level_gen, resume_physics),
+        )
+        .configure_sets(
+            PhysicsSchedule,
+            (MovementSystemSet, GravitySystemSet, FrictionSystemSet)
+                .chain()
+                .before(PhysicsStepSet::BroadPhase),
         );
     }
 }
@@ -127,7 +137,6 @@ fn setup_level_gen(
     let (scene, collider) =
         collider_from_gltf(gltf_handle, &gltf_assets, &gltf_meshes, &mut meshes);
     let mass = 150.0;
-
     let planet_position = Vec3::new(0.0, 0.0, 0.0);
 
     commands
@@ -168,7 +177,7 @@ fn setup_level_gen(
 
     let astronaut = astronaut_collection.fernando_the_flamingo.clone();
     let collider = Collider::ball(0.3);
-    let player_position = Vec3::new(10.0, 0.0, 0.0);
+    let player_position = Vec3::new(0.0, 10.0, 0.0);
     let direction_to_center = (player_position - planet_position).normalize();
     let rotation_axis = Vec3::Y.cross(direction_to_center).normalize();
     let rotation_angle = direction_to_center.angle_between(Vec3::Y);
@@ -176,10 +185,10 @@ fn setup_level_gen(
 
     commands
         .spawn((
+            // Rotation(rotation_quat),
             SpatialBundle::default(),
             RigidBody::Dynamic,
             Position(player_position),
-            Rotation(rotation_quat),
             collider.clone(),
             // Cast the player shape downwards to detect when the player is grounded
             ShapeCaster::new(collider, -Vec3::Y * 0.05, Quat::default(), -Vec3::Y)
