@@ -178,10 +178,10 @@ fn setup_level_gen(
     let astronaut = astronaut_collection.fernando_the_flamingo.clone();
     let collider = Collider::ball(0.3);
     let player_position = Vec3::new(0.0, 10.0, 0.0);
-    let direction_to_center = (player_position - planet_position).normalize();
-    let rotation_axis = Vec3::Y.cross(direction_to_center).normalize();
-    let rotation_angle = direction_to_center.angle_between(Vec3::Y);
-    let rotation_quat = Quat::from_axis_angle(rotation_axis, rotation_angle);
+    // let direction_to_center = (player_position - planet_position).normalize();
+    // let rotation_axis = Vec3::Y.cross(direction_to_center).normalize();
+    // let rotation_angle = direction_to_center.angle_between(Vec3::Y);
+    // let rotation_quat = Quat::from_axis_angle(rotation_axis, rotation_angle);
 
     commands
         .spawn((

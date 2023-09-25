@@ -123,8 +123,12 @@ fn follow_target(
     mut camera_query: Query<&mut Transform, With<MainCamera>>,
     time: Res<Time>,
 ) {
-    let Ok(target_transform) = target_query.get_single() else { return };
-    let Ok(mut camera_transform) = camera_query.get_single_mut() else { return };
+    let Ok(target_transform) = target_query.get_single() else {
+        return;
+    };
+    let Ok(mut camera_transform) = camera_query.get_single_mut() else {
+        return;
+    };
 
     // how high the camera is above the player
     let up_offset = 2.0;
@@ -149,8 +153,12 @@ fn track_to_target(
     target_query: Query<&Transform, (With<MainTrackTarget>, Without<MainCamera>)>,
     mut camera_query: Query<&mut Transform, With<MainCamera>>,
 ) {
-    let Ok(target_transform) = target_query.get_single() else { return };
-    let Ok(mut camera_transform) = camera_query.get_single_mut() else { return };
+    let Ok(target_transform) = target_query.get_single() else {
+        return;
+    };
+    let Ok(mut camera_transform) = camera_query.get_single_mut() else {
+        return;
+    };
 
     // Make the camera look at the player
     camera_transform.look_at(target_transform.translation, target_transform.up());

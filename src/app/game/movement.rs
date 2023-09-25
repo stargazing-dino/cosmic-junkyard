@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};
 
-use super::{game_state_machine::GameState, gravity::GravityBound, player::Player, DebugGizmos};
+use super::{game_state_machine::GameState, gravity::GravityBound, player::Player};
 
 pub struct MovementPlugin;
 
@@ -30,8 +30,8 @@ const AIR_CONTROL_FACTOR: f32 = 0.2;
 
 pub fn movement(
     keyboard_input: Res<Input<KeyCode>>,
-    debug_gizmos: Res<DebugGizmos>,
-    mut gizmos: Gizmos,
+    // debug_gizmos: Res<DebugGizmos>,
+    // mut gizmos: Gizmos,
     mut players: Query<
         (
             &mut Transform,
