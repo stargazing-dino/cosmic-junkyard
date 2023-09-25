@@ -18,17 +18,21 @@ impl Plugin for GraphicsPlugin {
         })
         .add_systems(
             Update,
-            (follow_target, asset_loaded).run_if(in_state(GameState::Playing)),
+            (follow_target, track_to_target, asset_loaded).run_if(in_state(GameState::Playing)),
         )
         .add_systems(OnEnter(GameState::Playing), (setup_graphics,));
     }
 }
 
+/// The main rig tag
 #[derive(Component)]
 struct MainCamera;
 
 #[derive(Component)]
-pub struct MainCameraTarget;
+pub struct MainTrackTarget;
+
+#[derive(Component)]
+pub struct MainFollowTarget;
 
 fn setup_graphics(mut commands: Commands, asset_server: Res<AssetServer>) {
     // directional 'sun' light
@@ -51,7 +55,7 @@ fn setup_graphics(mut commands: Commands, asset_server: Res<AssetServer>) {
         ..default()
     });
 
-    let camera_transform = Transform::from_xyz(0.0, 0.0, 10.0);
+    let camera_transform = Transform::from_xyz(0.0, 0.0, 16.0);
     let skybox_handle = asset_server.load("skyboxes/cubemap.png");
 
     // Bevy is a right handed, Y-up system.
@@ -67,7 +71,7 @@ fn setup_graphics(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         },
         BloomSettings::default(),
-        MainCamera, // The rig tag
+        MainCamera,
         Skybox(skybox_handle.clone()),
     ));
 
@@ -113,17 +117,14 @@ fn asset_loaded(
     }
 }
 
+/// Moves the camera to follow the target
 fn follow_target(
-    target_query: Query<&Transform, (With<MainCameraTarget>, Without<MainCamera>)>,
+    target_query: Query<&Transform, (With<MainFollowTarget>, Without<MainCamera>)>,
     mut camera_query: Query<&mut Transform, With<MainCamera>>,
     time: Res<Time>,
 ) {
-    let Ok(target_transform) = target_query.get_single() else {
-        return;
-    };
-    let Ok(mut camera_transform) = camera_query.get_single_mut() else {
-        return;
-    };
+    let Ok(target_transform) = target_query.get_single() else { return };
+    let Ok(mut camera_transform) = camera_query.get_single_mut() else { return };
 
     // how high the camera is above the player
     let up_offset = 2.0;
@@ -138,6 +139,18 @@ fn follow_target(
     camera_transform.translation = camera_transform
         .translation
         .lerp(target_camera_position, smooth_factor);
+
+    // Make the camera look at the player
+    camera_transform.look_at(target_transform.translation, target_transform.up());
+}
+
+/// Tracks the target without moving the camera
+fn track_to_target(
+    target_query: Query<&Transform, (With<MainTrackTarget>, Without<MainCamera>)>,
+    mut camera_query: Query<&mut Transform, With<MainCamera>>,
+) {
+    let Ok(target_transform) = target_query.get_single() else { return };
+    let Ok(mut camera_transform) = camera_query.get_single_mut() else { return };
 
     // Make the camera look at the player
     camera_transform.look_at(target_transform.translation, target_transform.up());

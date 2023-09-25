@@ -194,7 +194,7 @@ fn setup_level_gen(
             Mass(1.0),
             (
                 ExternalForce::default().with_persistence(false),
-                MainCameraTarget,
+                MainFollowTarget,
                 Player,
                 GravityBound::default(),
                 Upright,
