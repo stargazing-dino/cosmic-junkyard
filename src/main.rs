@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use app::AppPlugin;
-use bevy::{asset::ChangeWatcher, prelude::*};
+use bevy::{asset::ChangeWatcher, prelude::*, window::PresentMode};
 
 mod app;
 mod assets;
@@ -22,6 +22,7 @@ fn main() {
                         resolution: (WINDOW_WIDTH, WINDOW_HEIGHT).into(),
                         canvas: Some("#bevy".to_owned()),
                         position: WindowPosition::At((0, 0).into()),
+                        present_mode: PresentMode::AutoNoVsync,
                         ..default()
                     }),
                     ..default()
