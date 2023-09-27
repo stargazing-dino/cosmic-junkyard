@@ -7,7 +7,7 @@ use bevy_xpbd_3d::{
     prelude::{
         AngularDamping, CoefficientCombine, Collider, ColliderMassProperties, ExternalForce,
         Friction, Inertia, Mass, PhysicsDebugConfig, PhysicsLoop, PhysicsPlugins, Position,
-        Restitution, RigidBody, Sensor, ShapeCaster,
+        Restitution, RigidBody, Sensor, ShapeCaster, SpatialQueryFilter,
     },
     resources::Gravity,
     PhysicsSchedule, PhysicsStepSet,
@@ -183,19 +183,28 @@ fn setup_level_gen(
     // let rotation_angle = direction_to_center.angle_between(Vec3::Y);
     // let rotation_quat = Quat::from_axis_angle(rotation_axis, rotation_angle);
 
-    commands
-        .spawn((
+    let mut player_commands = commands.spawn_empty();
+    let player_id = player_commands.id();
+
+    player_commands
+        .insert((
             // Rotation(rotation_quat),
             SpatialBundle::default(),
             RigidBody::Dynamic,
             Position(player_position),
             collider.clone(),
             // Cast the player shape downwards to detect when the player is grounded
-            ShapeCaster::new(collider, -Vec3::Y * 0.05, Quat::default(), -Vec3::Y)
-                .with_ignore_origin_penetration(true) // Don't count player's collider
-                .with_max_time_of_impact(0.02)
-                // The user can be in a lot of gravity fields and those are all colliders
-                .with_max_hits(3),
+            ShapeCaster::new(
+                Collider::capsule(0.9, 0.35),
+                Vec3::ZERO,
+                // Vec3::Y * 0.05,
+                Quat::default(),
+                -Vec3::Y,
+            )
+            .with_ignore_origin_penetration(true) // Don't count player's collider
+            .with_max_hits(3)
+            .with_query_filter(SpatialQueryFilter::new().without_entities([player_id]))
+            .with_max_time_of_impact(0.2),
             Restitution::new(0.0).with_combine_rule(CoefficientCombine::Min),
             ColliderMassProperties::ZERO,
             Inertia(Mat3::IDENTITY),
