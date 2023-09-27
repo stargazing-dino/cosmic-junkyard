@@ -211,11 +211,10 @@ pub fn keep_upright(mut gravity_bound_query: Query<(&mut Rotation, &GravityBound
         if rotation_axis != Vec3::ZERO {
             let rotation_axis = rotation_axis.normalize();
             let rotation_diff = Quat::from_axis_angle(rotation_axis, rotation_angle.to_radians());
-
             let target_rotation = rotation_diff * rotation.0;
 
             // Gradually rotate the player to align with the gravity direction
-            rotation.0 = rotation.0.lerp(target_rotation, ROTATION_SPEED);
+            rotation.0 = rotation.0.slerp(target_rotation, ROTATION_SPEED);
         }
     }
 }
