@@ -3,6 +3,8 @@ use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};
 
 use crate::app::game::game_state_machine::GameState;
 
+use super::DebugGizmos;
+
 pub struct GravityPlugin;
 
 impl Plugin for GravityPlugin {
@@ -62,7 +64,6 @@ impl GravitySource for PointGravity {
         let distance = position.distance(other_position);
 
         // Prevent division by very small numbers
-        // Replace 0.001 with a suitable small number
         let safe_distance = distance.max(0.001);
 
         // Compute gravitational force as per Newton's law
@@ -145,6 +146,8 @@ impl GravitySource for CurvedGravity {
 // has a GravitySource component it then calculates the force due to that gravity source and
 // applies it to the rigid body.
 fn update_gravity(
+    debug_gizmos: Res<DebugGizmos>,
+    mut gizmos: Gizmos,
     mut rigid_body_query: Query<
         (
             RigidBodyQuery,
@@ -166,13 +169,17 @@ fn update_gravity(
         for colliding_entity in colliding_entities.0.iter() {
             if let Ok((gravity_sources, position)) = gravity_source_query.get(*colliding_entity) {
                 for gravity_source in gravity_sources {
-                    let gravtity_force = gravity_source.calculate_force(
+                    let gravity_force = gravity_source.calculate_force(
                         position.0,
                         rb_item.position.0,
                         rb_item.mass.0,
                     );
 
-                    external_force.apply_force(gravtity_force);
+                    external_force.apply_force(gravity_force);
+
+                    if debug_gizmos.enabled {
+                        gizmos.ray(position.0, position.0 - gravity_force, Color::BLUE);
+                    }
                 }
             }
         }
