@@ -20,7 +20,7 @@ impl Plugin for GraphicsPlugin {
         .add_systems(Update, asset_loaded.run_if(in_state(GameState::Playing)))
         .add_systems(
             PostUpdate,
-            (follow_target, track_to_target)
+            (follow_behind_target, track_to_target)
                 .run_if(in_state(GameState::Playing))
                 .after(PhysicsSet::Sync),
         )
@@ -122,34 +122,32 @@ fn asset_loaded(
 }
 
 /// Moves the camera to follow the target
-fn follow_target(
+fn follow_behind_target(
     target_query: Query<&Transform, (With<MainFollowTarget>, Without<MainCamera>)>,
     mut camera_query: Query<&mut Transform, With<MainCamera>>,
     time: Res<Time>,
 ) {
-    let Ok(target_transform) = target_query.get_single() else {
-        return;
-    };
-    let Ok(mut camera_transform) = camera_query.get_single_mut() else {
-        return;
-    };
+    if let Ok(target_transform) = target_query.get_single() {
+        if let Ok(mut camera_transform) = camera_query.get_single_mut() {
+            // how high the camera is above the player
+            let up_offset = 2.0;
+            // how far the camera is behind the player
+            let back_offset = 5.0;
 
-    // how high the camera is above the player
-    let up_offset = 2.0;
-    // how far the camera is behind the player
-    let back_offset = 5.0;
-    // Compute the desired camera position relative to the player
-    let target_camera_position = target_transform.translation
-        + target_transform.local_y() * up_offset
-        - target_transform.local_z() * back_offset;
+            // Compute the desired camera position relative to the player
+            let target_camera_position = target_transform.translation
+                + target_transform.up() * up_offset
+                - target_transform.forward() * back_offset;
 
-    let smooth_factor = 10.0 * time.delta_seconds();
-    camera_transform.translation = camera_transform
-        .translation
-        .lerp(target_camera_position, smooth_factor);
+            let smooth_factor = 10.0 * time.delta_seconds();
+            camera_transform.translation = camera_transform
+                .translation
+                .lerp(target_camera_position, smooth_factor);
 
-    // Make the camera look at the player
-    camera_transform.look_at(target_transform.translation, target_transform.up());
+            // Make the camera look at the player
+            camera_transform.look_at(target_transform.translation, target_transform.up());
+        }
+    }
 }
 
 /// Tracks the target without moving the camera

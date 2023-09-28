@@ -25,10 +25,11 @@ const AIR_CONTROL_FACTOR: f32 = 0.2;
 pub fn movement(
     keyboard_input: Res<Input<KeyCode>>,
     // debug_gizmos: Res<DebugGizmos>,
-    // mut gizmos: Gizmos,
+    mut gizmos: Gizmos,
     mut players: Query<
         (
-            &mut Transform,
+            &Transform,
+            &mut Rotation,
             &mut LinearVelocity,
             &ShapeHits,
             &GravityBound,
@@ -37,23 +38,17 @@ pub fn movement(
     >,
     sensors_query: Query<&Sensor>,
 ) {
-    for (mut transform, mut linear_velocity, shape_hits, gravity_bound) in &mut players {
+    for (transform, mut rotation, mut linear_velocity, shape_hits, gravity_bound) in &mut players {
         let gravity_force = gravity_bound.gravity_force;
         let gravity_up = -gravity_force.normalize();
         let touching_ground = shape_hits
             .iter()
             .any(|hit| sensors_query.get(hit.entity).is_err());
-        let forward = -transform.forward();
-        let right = -transform.right();
-
-        // gizmos.ray(
-        //     transform.translation,
-        //     transform.translation + right,
-        //     Color::YELLOW,
-        // );
-
+        let forward = transform.forward();
+        let right = transform.right();
         // Create a movement vector from the keyboard input
         let mut move_dir = Vec3::ZERO;
+
         if keyboard_input.pressed(KeyCode::Up) {
             move_dir += forward;
         }
@@ -70,19 +65,21 @@ pub fn movement(
         if move_dir != Vec3::ZERO {
             move_dir = move_dir.normalize();
 
-            // Normalize the movement vector and adjust it for speed and delta time
-            let target_position = transform.translation + move_dir;
+            // Check the angle between move_dir and forward direction
+            let dot_product = move_dir.dot(forward);
+            let angle = dot_product.acos();
 
-            // if debug_gizmos.enabled {
-            //     gizmos.ray(transform.translation, target_position, Color::RED);
-            // }
+            // If the angle is not close to π radians, update the rotation. This prevents
+            // the player from rotating when moving directly backwards
+            if (angle - std::f32::consts::PI).abs() > 0.1 {
+                let target_position = transform.translation + move_dir;
 
-            let new_rotation = transform.rotation.lerp(
-                transform.looking_at(target_position, gravity_up).rotation,
-                0.1,
-            );
+                gizmos.ray(transform.translation, move_dir, Color::YELLOW);
 
-            transform.rotation = new_rotation;
+                let target_rotation = transform.looking_at(target_position, gravity_up).rotation;
+                let new_rotation = transform.rotation.slerp(target_rotation, 0.1);
+                rotation.0 = new_rotation;
+            }
 
             move_dir = move_dir * PLAYER_SPEED;
 

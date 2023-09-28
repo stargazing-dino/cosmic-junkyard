@@ -82,6 +82,7 @@ impl Plugin for GamePlugin {
             PhysicsSchedule,
             (MovementSystemSet, GravitySystemSet, FrictionSystemSet)
                 .chain()
+                // I'd preferably like this to run before PhysicsStep::Prepare
                 .before(PhysicsStepSet::BroadPhase),
         );
     }
@@ -222,9 +223,12 @@ fn setup_level_gen(
             ),
         ))
         .with_children(|parent| {
+            let mut transform = Transform::from_xyz(0.0, -0.35, 0.0).with_scale(Vec3::splat(0.3));
+            transform.rotate_y(std::f32::consts::PI);
+
             parent.spawn(SceneBundle {
                 scene: astronaut,
-                transform: Transform::from_xyz(0.0, -0.35, 0.0).with_scale(Vec3::splat(0.3)),
+                transform,
                 ..default()
             });
         });
