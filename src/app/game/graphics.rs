@@ -4,7 +4,6 @@ use bevy::{
     pbr::CascadeShadowConfigBuilder,
     prelude::*,
     render::render_resource::{TextureViewDescriptor, TextureViewDimension},
-    transform::TransformSystem,
 };
 use bevy_xpbd_3d::PhysicsSet;
 
