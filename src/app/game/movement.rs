@@ -9,16 +9,10 @@ impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             PhysicsSchedule,
-            (movement, jump)
+            ((movement, jump).before(apply_friction), apply_friction)
                 .run_if(in_state(GameState::Playing))
                 .in_set(MovementSystemSet),
         );
-        // .add_systems(
-        //     PhysicsSchedule,
-        //     (apply_friction)
-        //         .run_if(in_state(GameState::Playing))
-        //         .in_set(FrictionSystemSet),
-        // );
     }
 }
 
