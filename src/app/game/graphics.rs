@@ -4,7 +4,9 @@ use bevy::{
     pbr::CascadeShadowConfigBuilder,
     prelude::*,
     render::render_resource::{TextureViewDescriptor, TextureViewDimension},
+    transform::TransformSystem,
 };
+use bevy_xpbd_3d::PhysicsSet;
 
 use super::game_state_machine::GameState;
 
@@ -16,9 +18,12 @@ impl Plugin for GraphicsPlugin {
             color: Color::WHITE,
             brightness: 1.0 / 5.0f32,
         })
+        .add_systems(Update, asset_loaded.run_if(in_state(GameState::Playing)))
         .add_systems(
-            Update,
-            (follow_target, track_to_target, asset_loaded).run_if(in_state(GameState::Playing)),
+            PostUpdate,
+            (follow_target, track_to_target)
+                .run_if(in_state(GameState::Playing))
+                .after(PhysicsSet::Sync),
         )
         .add_systems(OnEnter(GameState::Playing), (setup_graphics,));
     }
