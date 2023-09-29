@@ -26,7 +26,8 @@ use self::{
     game_state_machine::{GameState, GameStateMachinePlugin},
     graphics::GraphicsPlugin,
     gravity::{
-        GravityBound, GravityPlugin, GravitySourceBundle, GravitySystemSet, PointGravity, Upright,
+        GravityBound, GravityPlugin, GravitySourceBundle, GravitySystemSet, PlanarGravity,
+        PointGravity, Upright,
     },
     junk::JunkPlugin,
     movement::{FrictionSystemSet, MovementPlugin, MovementSystemSet},
@@ -133,12 +134,60 @@ fn setup_level_gen(
     gltf_meshes: Res<Assets<GltfMesh>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
+    let plane_position = Vec3::new(0.0, 5.0, 0.0);
+    let plane_mass = 150.0;
+    let plane_surface_size = 20.0;
+
+    commands
+        .spawn((
+            PbrBundle {
+                mesh: meshes.add(Mesh::from(shape::Plane {
+                    size: plane_surface_size,
+                    subdivisions: 2,
+                })),
+                ..Default::default()
+            },
+            Position(plane_position),
+            RigidBody::Kinematic,
+            Mass(plane_mass as f32),
+            ColliderMassProperties::ZERO,
+            Collider::cuboid(plane_surface_size, 0.1, plane_surface_size),
+            Restitution::new(0.0).with_combine_rule(CoefficientCombine::Max),
+        ))
+        // The gravity field for this planar surface
+        .with_children(|parent| {
+            // I need to move it up by half the size of the surface
+            let postion = Vec3::new(
+                plane_position.x,
+                plane_position.y + plane_surface_size / 2.0,
+                plane_position.z,
+            );
+
+            parent.spawn((
+                PlanarGravity {
+                    normal: Vec3::Y,
+                    gravity_strength: 8.0 * 8.0,
+                },
+                GravitySourceBundle {
+                    position: Position(postion),
+                    rigid_body: RigidBody::Kinematic,
+                    collider: Collider::cuboid(
+                        plane_surface_size,
+                        plane_surface_size,
+                        plane_surface_size,
+                    ),
+                    sensor: Sensor,
+                },
+            ));
+        });
+
     let planet_type = PlanetType::Planet1;
-    let gltf_handle = planet_type.model_from(&planet_collection);
+    let planet_gltf = planet_type.model_from(&planet_collection);
     let (scene, collider) =
-        collider_from_gltf(gltf_handle, &gltf_assets, &gltf_meshes, &mut meshes);
-    let mass = 150.0;
-    let planet_position = Vec3::new(0.0, 0.0, 0.0);
+        collider_from_gltf(planet_gltf, &gltf_assets, &gltf_meshes, &mut meshes);
+    let planet_mass = 150.0;
+    let gravity_radius = 24.0;
+    let planet_position = Vec3::new(0.0, 3.0, -gravity_radius);
 
     commands
         .spawn((
@@ -149,7 +198,7 @@ fn setup_level_gen(
                 },
                 position: Position(planet_position),
                 rigid_body: RigidBody::Kinematic,
-                mass: Mass(mass as f32),
+                mass: Mass(planet_mass as f32),
                 friction: Friction::new(0.4).with_static_coefficient(0.8),
                 scene: SceneBundle { scene, ..default() },
                 collider_mass_properties: ColliderMassProperties::ZERO,
@@ -159,18 +208,15 @@ fn setup_level_gen(
             Restitution::new(0.0).with_combine_rule(CoefficientCombine::Max),
         ))
         .with_children(|parent| {
-            let radius = 24.0;
-
             parent.spawn((
                 PointGravity {
-                    // TODO: This looks off bruh
-                    center_mass: mass as f32,
-                    gravity_strength: 6.8,
+                    center_mass: planet_mass as f32,
+                    gravity_strength: 8.8,
                 },
                 GravitySourceBundle {
                     position: Position(planet_position),
                     rigid_body: RigidBody::Kinematic,
-                    collider: Collider::ball(radius),
+                    collider: Collider::ball(gravity_radius),
                     sensor: Sensor,
                 },
             ));
