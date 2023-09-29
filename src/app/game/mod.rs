@@ -189,6 +189,7 @@ fn setup_level_gen(
 
     player_commands
         .insert((
+            // Adding this next line breaks for some reason :(
             // Rotation(rotation_quat),
             SpatialBundle::default(),
             RigidBody::Dynamic,
