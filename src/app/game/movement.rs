@@ -107,6 +107,8 @@ pub fn movement(
     }
 }
 
+const JUMP_STRENGTH: f32 = 16.0;
+
 pub fn jump(
     keyboard_input: Res<Input<KeyCode>>,
     mut players: Query<(&mut ExternalImpulse, &ShapeHits, &GravityBound), With<Player>>,
@@ -131,9 +133,7 @@ pub fn jump(
         let gravity_up = -gravity_force.normalize();
 
         if keyboard_input.just_pressed(KeyCode::Space) {
-            // TODO: The amount of impulse should be inversely proportional to the
-            // gravity force
-            external_impulse.apply_impulse(gravity_up * 16.0);
+            external_impulse.apply_impulse(gravity_up * JUMP_STRENGTH);
         }
     }
 }
