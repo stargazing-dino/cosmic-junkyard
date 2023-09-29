@@ -84,6 +84,7 @@ impl GravitySource for PointGravity {
 /// towards it.
 #[derive(Component, Reflect, Default, Debug)]
 pub struct PlanarGravity {
+    // The normal vector of the plane.
     pub normal: Vec3,
 
     pub gravity_strength: f32,
