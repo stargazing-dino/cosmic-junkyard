@@ -9,8 +9,16 @@ impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             PhysicsSchedule,
-            ((movement, jump).before(apply_friction), apply_friction)
+            ((movement,).before(apply_friction), apply_friction)
                 .run_if(in_state(GameState::Playing))
+                .in_set(MovementSystemSet),
+        )
+        // I'd like for jump to alongside movement, friction etc but because it uses
+        // just_pressed which relies on timing, a FixedUpdate schedule will miss a
+        // lot of the presses.
+        .add_systems(
+            Update,
+            jump.run_if(in_state(GameState::Playing))
                 .in_set(MovementSystemSet),
         );
     }
