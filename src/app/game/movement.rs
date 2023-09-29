@@ -120,16 +120,20 @@ pub fn jump(
             continue;
         }
 
+        let touching_ground = shape_hits
+            .iter()
+            .any(|hit| sensors_query.get(hit.entity).is_err());
+
+        if !touching_ground {
+            continue;
+        }
+
         let gravity_up = -gravity_force.normalize();
 
         if keyboard_input.just_pressed(KeyCode::Space) {
-            let touching_ground = shape_hits
-                .iter()
-                .any(|hit| sensors_query.get(hit.entity).is_err());
-
-            if touching_ground {
-                external_impulse.apply_impulse(gravity_up * 16.0);
-            }
+            // TODO: The amount of impulse should be inversely proportional to the
+            // gravity force
+            external_impulse.apply_impulse(gravity_up * 16.0);
         }
     }
 }
@@ -149,18 +153,20 @@ pub fn apply_friction(
             .iter()
             .any(|hit| sensors_query.get(hit.entity).is_err());
 
-        if touching_ground {
-            let gravity_force = gravity_bound.gravity_force;
-            let gravity_up = -gravity_force.normalize();
-            // project the velocity onto the ground plane and apply friction to it
-            let ground_velocity = linear_velocity.0.dot(gravity_up) * gravity_up;
-            let mut tangential_velocity = linear_velocity.0 - ground_velocity;
-
-            // apply friction to the tangential velocity
-            tangential_velocity *= 1.0 - FRICTION_FACTOR;
-
-            // combine the velocities
-            linear_velocity.0 = ground_velocity + tangential_velocity;
+        if !touching_ground {
+            continue;
         }
+
+        let gravity_force = gravity_bound.gravity_force;
+        let gravity_up = -gravity_force.normalize();
+        // project the velocity onto the ground plane and apply friction to it
+        let ground_velocity = linear_velocity.0.dot(gravity_up) * gravity_up;
+        let mut tangential_velocity = linear_velocity.0 - ground_velocity;
+
+        // apply friction to the tangential velocity
+        tangential_velocity *= 1.0 - FRICTION_FACTOR;
+
+        // combine the velocities
+        linear_velocity.0 = ground_velocity + tangential_velocity;
     }
 }
