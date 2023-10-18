@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};
 
-use super::{game_state_machine::GameState, gravity::GravityBound, player::Player};
+use super::{
+    character_controller::Controller, game_state_machine::GameState, gravity::GravityBound,
+    player::Player, DebugGizmos,
+};
 
 pub struct MovementPlugin;
 
@@ -27,53 +30,90 @@ impl Plugin for MovementPlugin {
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct MovementSystemSet;
 
-const PLAYER_SPEED: f32 = 6.4;
 const AIR_CONTROL_FACTOR: f32 = 0.2;
 
 pub fn movement(
     keyboard_input: Res<Input<KeyCode>>,
-    // debug_gizmos: Res<DebugGizmos>,
+    debug_gizmos: Res<DebugGizmos>,
     mut gizmos: Gizmos,
-    mut players: Query<
-        (
-            &Transform,
-            &mut Rotation,
-            &mut LinearVelocity,
-            &ShapeHits,
-            &GravityBound,
-        ),
-        With<Player>,
-    >,
+    mut players: Query<(
+        &Controller,
+        &Transform,
+        &mut Rotation,
+        &mut LinearVelocity,
+        &ShapeHits,
+        &GravityBound,
+    )>,
     sensors_query: Query<&Sensor>,
 ) {
-    for (transform, mut rotation, mut linear_velocity, shape_hits, gravity_bound) in &mut players {
+    for (controller, transform, mut rotation, mut linear_velocity, shape_hits, gravity_bound) in
+        &mut players
+    {
         let gravity_force = gravity_bound.gravity_force;
         let gravity_up = -gravity_force.normalize();
-        let touching_ground = shape_hits
-            .iter()
-            .any(|hit| sensors_query.get(hit.entity).is_err());
-        let forward = transform.forward();
-        let right = transform.right();
-        // Create a movement vector from the keyboard input
-        let mut move_dir = Vec3::ZERO;
 
-        if keyboard_input.pressed(KeyCode::Up) {
-            move_dir += forward;
-        }
-        if keyboard_input.pressed(KeyCode::Down) {
-            move_dir -= forward;
-        }
-        if keyboard_input.pressed(KeyCode::Left) {
-            move_dir -= right;
-        }
-        if keyboard_input.pressed(KeyCode::Right) {
-            move_dir += right;
-        }
+        if gravity_force == Vec3::ZERO {
+            // Zero gravity movement logic
+            let mut rotation_dir = Vec3::ZERO;
+            let up = transform.up();
+            let right = transform.right();
 
-        if move_dir != Vec3::ZERO {
+            // Pitch rotation
+            if keyboard_input.pressed(KeyCode::Up) {
+                rotation_dir += up;
+            }
+            if keyboard_input.pressed(KeyCode::Down) {
+                rotation_dir -= up;
+            }
+
+            // Yaw rotation
+            if keyboard_input.pressed(KeyCode::Left) {
+                rotation_dir -= right;
+            }
+            if keyboard_input.pressed(KeyCode::Right) {
+                rotation_dir += right;
+            }
+
+            if rotation_dir == Vec3::ZERO {
+                continue;
+            }
+
+            rotation_dir = rotation_dir.normalize();
+            let target_position = transform.translation + rotation_dir;
+
+            if debug_gizmos.enabled {
+                gizmos.ray(transform.translation, rotation_dir, Color::YELLOW);
+            }
+
+            // Use the player's current right vector as the "up" vector for looking_at
+            let target_rotation = transform.looking_at(target_position, up).rotation;
+            let new_rotation = transform.rotation.lerp(target_rotation, 0.1);
+            rotation.0 = new_rotation;
+        } else {
+            // Gravity movement logic
+            let mut move_dir = Vec3::ZERO;
+            let forward = transform.forward();
+            let right = transform.right();
+
+            if keyboard_input.pressed(KeyCode::Up) {
+                move_dir += forward;
+            }
+            if keyboard_input.pressed(KeyCode::Down) {
+                move_dir -= forward;
+            }
+            if keyboard_input.pressed(KeyCode::Left) {
+                move_dir -= right;
+            }
+            if keyboard_input.pressed(KeyCode::Right) {
+                move_dir += right;
+            }
+
+            if move_dir == Vec3::ZERO {
+                continue;
+            }
+
             move_dir = move_dir.normalize();
 
-            // Check the angle between move_dir and forward direction
             let dot_product = move_dir.dot(forward);
             let angle = dot_product.acos();
 
@@ -82,21 +122,21 @@ pub fn movement(
             if (angle - std::f32::consts::PI).abs() > 0.1 {
                 let target_position = transform.translation + move_dir;
 
-                gizmos.ray(transform.translation, move_dir, Color::YELLOW);
+                if debug_gizmos.enabled {
+                    gizmos.ray(transform.translation, move_dir, Color::YELLOW);
+                }
 
                 let target_rotation = transform.looking_at(target_position, gravity_up).rotation;
                 let new_rotation = transform.rotation.slerp(target_rotation, 0.1);
                 rotation.0 = new_rotation;
             }
 
-            move_dir = move_dir * PLAYER_SPEED;
+            move_dir = move_dir * controller.run_speed;
 
-            // If the character is floating in space, don't apply movement
-            if gravity_force == Vec3::ZERO {
-                continue;
-            }
+            let touching_ground = shape_hits
+                .iter()
+                .any(|hit| sensors_query.get(hit.entity).is_err());
 
-            // Apply the movement to the player
             if touching_ground {
                 linear_velocity.0 += move_dir;
             } else {
@@ -109,10 +149,10 @@ pub fn movement(
 
 pub fn jump(
     keyboard_input: Res<Input<KeyCode>>,
-    mut players: Query<(&mut ExternalImpulse, &ShapeHits, &GravityBound), With<Player>>,
+    mut players: Query<(&Controller, &mut ExternalImpulse, &ShapeHits, &GravityBound)>,
     sensors_query: Query<&Sensor>,
 ) {
-    for (mut external_impulse, shape_hits, gravity_bound) in &mut players {
+    for (controller, mut external_impulse, shape_hits, gravity_bound) in &mut players {
         let gravity_force = gravity_bound.gravity_force;
 
         // If the player is floating in space, don't apply jump
@@ -133,7 +173,7 @@ pub fn jump(
         if keyboard_input.just_pressed(KeyCode::Space) {
             // TODO: The amount of impulse should be inversely proportional to the
             // gravity force
-            external_impulse.apply_impulse(gravity_up * 16.0);
+            external_impulse.apply_impulse(gravity_up * controller.jump_force);
         }
     }
 }

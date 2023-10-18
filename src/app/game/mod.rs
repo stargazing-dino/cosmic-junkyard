@@ -35,6 +35,7 @@ use self::{
     sounds::SoundsPlugin,
 };
 
+mod character_controller;
 mod game_state_machine;
 mod graphics;
 mod gravity;
